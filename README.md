@@ -1,6 +1,10 @@
-# NTP Home Bridge
+# NTP & GPS Home Bridge
 
-This repository provides an NTP monitoring system for Home Assistant integration on Raspberry Pi.
+This repository provides NTP and GPS monitoring systems for Home Assistant integration on Raspberry Pi.
+
+## Architecture
+
+![logical_architecture](img/logic_graphviz.png)
 
 ## Installation
 
@@ -12,11 +16,17 @@ Run the installer as root:
 sudo ./ntphomebridge.sh
 ```
 
-The installer will check for and install required dependencies (NTP, Python 3, and a web server if not present), set up directories, copy scripts, configure systemd service, and start the NTP monitoring service.
+The installer will check for and install required dependencies (NTP, GPSD, Python 3, jq, and a web server if not present), set up directories, copy scripts, configure systemd services, and start the NTP and GPS monitoring services.
 
 ## Usage
 
-The service collects NTP data and serves JSON files at `http://<server_ip>/ntpq_crv.json` and `http://<server_ip>/ntpq_pn.json`.
+The services collect NTP and GPS data and serve JSON files at the following endpoints:
+
+| Endpoint | Description | Data Type |
+|----------|-------------|-----------|
+| `http://<server_ip>/ntpq_crv.json` | NTP control variables including stratum, frequency, jitter, and precision metrics | NTP System Status |
+| `http://<server_ip>/ntpq_pn.json` | NTP peer information showing synchronization sources and their status | NTP Peer Data |
+| `http://<server_ip>/gps.json` | GPS satellite data including satellite positions, signal strength, and DOP values | GPS Satellite Data |
 
 Configure Home Assistant REST sensors to consume these endpoints as described in the documentation.
 
@@ -28,28 +38,35 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 ## Directory Structure
 
 ```bash
-/opt/ntpserver/
-├── ntp_server.sh                 # Main service script
-├── ntpq_crv_sensor.py           # CRV data parser
-├── ntpq_pn_sensor.py            # Peer data parser
-├── raw_ntpq_crv.txt             # Raw CRV output
-├── raw_ntpq_pn.txt              # Raw peer output
-├── ntpq_crv.json                # Processed CRV JSON
-└── ntpq_pn.json                 # Processed peer JSON
+/opt/ntphomebridge/
+├── ntp_service.sh                 # NTP service script
+├── gpsserver.sh                   # GPS service script
+├── ntpq_crv_sensor.py            # CRV data parser
+├── ntpq_pn_sensor.py             # Peer data parser
+├── gps_sensor.py                 # GPS data processor
+├── raw_ntpq_crv.txt              # Raw CRV output
+├── raw_ntpq_pn.txt               # Raw peer output
+├── gps.json                      # GPS data output
+├── ntpq_crv.json                 # Processed CRV JSON
+└── ntpq_pn.json                  # Processed peer JSON
 
 /var/www/html/
-├── ntpq_crv.json                # Public CRV JSON endpoint
-└── ntpq_pn.json                 # Public peer JSON endpoint
+├── ntpq_crv.json                 # Public CRV JSON endpoint
+├── ntpq_pn.json                  # Public peer JSON endpoint
+└── gps.json                      # Public GPS JSON endpoint
 ```
 
 
 ## Files
 
 - `ntphomebridge.sh`: Installer script
-- `ntp_service.sh`: Service script
+- `ntp_service.sh`: NTP service script
+- `gpsserver.sh`: GPS service script
 - `scripts/ntpq_crv_sensor.py`: CRV data parser
 - `scripts/ntpq_pn_sensor.py`: Peer data parser
-- `NTP_API_Implementation_Documentation.md`: Detailed documentation
+- `scripts/gps_sensor.py`: GPS data processor
+- `GPS_API_Implementation_Documentation.md`: GPS documentation
+- `NTP_API_Implementation_Documentation.md`: NTP documentation
 - `README.md`: This file
 - `LICENSE`: MIT license
 
@@ -89,6 +106,36 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 - **Description**: System clock precision (log₂ seconds)
 - **Values**: Negative values (e.g., -20 = 2^-20 seconds ≈ 1 microsecond)
 - **Monitoring**: Hardware capability indicator
+
+## GPS Metrics Explained
+
+![GPS in Home Assistant](img/gps.png)
+
+
+### 1. Satellite Information
+- **PRN**: Pseudo-Random Noise code (unique satellite identifier)
+- **Elevation**: Angle above horizon (0-90 degrees)
+- **Azimuth**: Angle from north (0-360 degrees)
+- **SNR**: Signal strength/SNR (0-50+ dB)
+- **Used**: Boolean indicating if satellite is used in position fix
+
+### 2. Dilution of Precision (DOP) Values
+- **HDOP**: Horizontal Dilution of Precision (position accuracy)
+- **VDOP**: Vertical Dilution of Precision (altitude accuracy)
+- **PDOP**: Position Dilution of Precision (3D position accuracy)
+- **GDOP**: Geometric Dilution of Precision (time and position)
+
+**DOP Guidelines:**
+- < 1: Excellent
+- 1-2: Good
+- 2-5: Moderate
+- 5-10: Fair
+- > 10: Poor
+
+### 3. Satellite Counts
+- **Total Satellites**: Number of satellites in view
+- **Used Satellites**: Number of satellites used in position calculation
+- **Satellite Ratio**: Percentage of used vs visible satellites
 
 ## Security Considerations
 

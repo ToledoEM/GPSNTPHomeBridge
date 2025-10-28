@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# NTP & GPS Home Bridge Installer
-# Installs NTP and GPS monitoring services for Home Assistant integration
+# NTP Home Bridge Installer
+# Installs NTP monitoring service for Home Assistant integration
 #
 
 set -e
@@ -13,16 +13,16 @@ export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 trap abort INT QUIT TERM
 
 ######## VARIABLES #########
-# NTP & GPS Home Bridge directories
+# NTP Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
 
 # Scripts
-NTP_SCRIPTS=("ntpq_crv_sensor.py" "ntpq_pn_sensor.py" "gps_sensor.py")
+NTP_SCRIPTS=("ntpq_crv_sensor.py" "ntpq_pn_sensor.py")
 
 # Dependencies
-DEPENDENCIES=("ntp" "python3" "gpsd" "jq")
+DEPENDENCIES=("ntp" "python3")
 WEB_SERVERS=("lighttpd" "nginx" "apache2")
 
 # Colors
@@ -110,18 +110,13 @@ copy_scripts() {
     printf "  %b Copying scripts...\n" "${INFO}"
     cp scripts/ntpq_crv_sensor.py "$NTP_HOME_DIR/"
     cp scripts/ntpq_pn_sensor.py "$NTP_HOME_DIR/"
-    cp scripts/gps_sensor.py "$NTP_HOME_DIR/"
     cp ntp_service.sh "$NTP_HOME_DIR/"
-    cp gpsserver.sh "$NTP_HOME_DIR/"
     chmod +x "$NTP_HOME_DIR/ntp_service.sh"
-    chmod +x "$NTP_HOME_DIR/gpsserver.sh"
     printf "%b  %b Scripts copied\n" "${OVER}" "${TICK}"
 }
 
 setup_systemd_service() {
-    printf "  %b Setting up systemd services...\n" "${INFO}"
-
-    # NTP Service
+    printf "  %b Setting up systemd service...\n" "${INFO}"
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
 Description=NTP Home Bridge Service
@@ -138,29 +133,9 @@ User=root
 [Install]
 WantedBy=multi-user.target
 EOF
-
-    # GPS Service
-    cat > /etc/systemd/system/gpshomebridge.service << EOF
-[Unit]
-Description=GPS Home Bridge Service
-After=network.target gpsd.service
-
-[Service]
-ExecStart=$NTP_HOME_DIR/gpsserver.sh
-WorkingDirectory=$NTP_HOME_DIR/
-StandardOutput=journal
-StandardError=journal
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
     systemctl daemon-reload
     systemctl enable ntphomebridge.service
-    systemctl enable gpshomebridge.service
-    printf "%b  %b Systemd services configured\n" "${OVER}" "${TICK}"
+    printf "%b  %b Systemd service configured\n" "${OVER}" "${TICK}"
 }
 
 configure_webserver() {
@@ -198,11 +173,7 @@ configure_webserver() {
 start_service() {
     printf "  %b Starting NTP Home Bridge service...\n" "${INFO}"
     systemctl start ntphomebridge.service
-    printf "%b  %b NTP service started\n" "${OVER}" "${TICK}"
-
-    printf "  %b Starting GPS Home Bridge service...\n" "${INFO}"
-    systemctl start gpshomebridge.service
-    printf "%b  %b GPS service started\n" "${OVER}" "${TICK}"
+    printf "%b  %b Service started\n" "${OVER}" "${TICK}"
 }
 
 abort() {
@@ -211,8 +182,8 @@ abort() {
 }
 
 main() {
-    printf "\n%b NTP & GPS Home Bridge Installer\n" "${COL_GREEN}"
-    printf "=================================\n\n"
+    printf "\n%b NTP Home Bridge Installer\n" "${COL_GREEN}"
+    printf "==========================\n\n"
 
     # Check if root
     if [[ $EUID -ne 0 ]]; then
@@ -230,4 +201,7 @@ main() {
     start_service
 
     printf "\n%b Installation complete!\n" "${TICK}"
+    printf "NTP data will be available at http://your_ip/ntpq_crv.json and http://your_ip/ntpq_pn.json\n"
 }
+
+main "$@"
