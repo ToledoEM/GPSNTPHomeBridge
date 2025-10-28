@@ -145,5 +145,129 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 4. **Rate Limiting**: Implement rate limiting to prevent abuse of your own system
 
 
+## HOME ASSISTANT INTEGRATION
+
+### RESTful Sensor Configuration
+
+Add the following configuration to your Home Assistant `configuration.yaml` file to integrate the NTP and GPS monitoring endpoints.
+
+#### NTP Server Monitoring
+
+```yaml
+# NTP Server Status Sensor
+sensor:
+  - platform: rest
+    name: ntp_server_status
+    unique_id: ntp_server_status
+    resource: http://YOUR_SERVER_IP/ntpq_crv.json
+    value_template: "{{ value_json.stratum }}"
+    method: GET
+    verify_ssl: false
+    timeout: 30
+    force_update: true
+    scan_interval: 60
+    json_attributes:
+      - stratum
+      - frequency
+      - sys_jitter
+      - clk_jitter
+      - clk_wander
+      - precision
+      - offset
+      - refid
+```
+
+#### GPS Satellite Monitoring
+
+```yaml
+# GPS Server Sensor
+sensor:
+  - platform: rest
+    name: gps_server
+    unique_id: gps_server
+    resource: http://YOUR_SERVER_IP/gps.json
+    value_template: "{{ value_json.uSat }}"
+    method: GET
+    verify_ssl: false
+    timeout: 30
+    force_update: true
+    scan_interval: 15
+    json_attributes:
+      - satellites
+      - nSat
+      - uSat
+      - hdop
+      - vdop
+      - pdop
+      - gdop
+      - tdop
+      - xdop
+      - ydop
+      - time
+```
+
+#### Template Sensors (Optional)
+
+Create derived sensors for better dashboard integration:
+
+```yaml
+template:
+  - sensor:
+      # NTP Metrics
+      - name: "NTP Stratum"
+        unique_id: "ntp_stratum"
+        state: "{{ state_attr('sensor.ntp_server_status', 'stratum') }}"
+        state_class: measurement
+        icon: mdi:server-network
+
+      - name: "NTP Clock Jitter"
+        unique_id: "ntp_clock_jitter"
+        state: "{{ state_attr('sensor.ntp_server_status', 'clk_jitter') }}"
+        unit_of_measurement: "s"
+        state_class: measurement
+        icon: mdi:clock
+
+      # GPS Metrics
+      - name: "GPS Satellites Used"
+        unique_id: "gps_satellites_used"
+        state: "{{ state_attr('sensor.gps_server', 'uSat') }}"
+        state_class: measurement
+        icon: mdi:satellite-variant
+
+      - name: "GPS Satellites Visible"
+        unique_id: "gps_satellites_visible"
+        state: "{{ state_attr('sensor.gps_server', 'nSat') }}"
+        state_class: measurement
+        icon: mdi:satellite
+
+      - name: "GPS HDOP"
+        unique_id: "gps_hdop"
+        state: "{{ state_attr('sensor.gps_server', 'hdop') }}"
+        state_class: measurement
+        icon: mdi:map-marker-radius
+```
+
+**Important Notes:**
+- Replace `YOUR_SERVER_IP` with the actual IP address of your NTP/GPS server
+- Adjust `scan_interval` based on your monitoring needs (values in seconds)
+- For detailed configuration and advanced sensors, refer to the [NTP API Documentation](NTP_API_Implementation_Documentation.md) and [GPS API Documentation](GPS_API_Implementation_Documentation.md)
+- Restart Home Assistant after adding these configurations
+
+### Dashboard Example
+
+Create a simple entities card in your dashboard:
+
+```yaml
+type: entities
+title: NTP & GPS Monitoring
+entities:
+  - entity: sensor.ntp_stratum
+  - entity: sensor.ntp_clock_jitter
+  - entity: sensor.gps_satellites_used
+  - entity: sensor.gps_satellites_visible
+  - entity: sensor.gps_hdop
+```
+
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

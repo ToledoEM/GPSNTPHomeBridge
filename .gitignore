@@ -1,2 +1,62 @@
+# Documentation files (generated)
 NTP_API_Implementation_Documentation.md
 GPS_API_Implementation_Documentation.md
+for_testing.md
+
+# Raw data files
+raw_ntpq_pn.txt
+raw_ntpq_crv.txt
+gps.json
+ntpq_crv.json
+ntpq_pn.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Testing artifacts
+test.json
+test_*.json
+*.test
+
+# Docker
+Dockerfile.test
+docker-compose.test.yml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Temporary files
+*.tmp
+temp/
+tmp/
