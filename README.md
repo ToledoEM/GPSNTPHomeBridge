@@ -13,7 +13,7 @@ Download the installer script and review its contents before execution, as runni
 Run the installer as root:
 
 ```bash
-sudo ./ntphomebridge.sh
+sudo ./gpsntphomebridge.sh
 ```
 
 The installer will check for and install required dependencies (NTP, GPSD, Python 3, jq, and a web server if not present), set up directories, copy scripts, configure systemd services, and start the NTP and GPS monitoring services.
@@ -59,14 +59,12 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 
 ## Files
 
-- `ntphomebridge.sh`: Installer script
+- `gpsntphomebridge.sh`: Installer script
 - `ntp_service.sh`: NTP service script
 - `gpsserver.sh`: GPS service script
 - `scripts/ntpq_crv_sensor.py`: CRV data parser
 - `scripts/ntpq_pn_sensor.py`: Peer data parser
 - `scripts/gps_sensor.py`: GPS data processor
-- `GPS_API_Implementation_Documentation.md`: GPS documentation
-- `NTP_API_Implementation_Documentation.md`: NTP documentation
 - `README.md`: This file
 - `LICENSE`: MIT license
 
@@ -160,7 +158,7 @@ sensor:
     name: ntp_server_status
     unique_id: ntp_server_status
     resource: http://YOUR_SERVER_IP/ntpq_crv.json
-    value_template: "{{ value_json.stratum }}"
+    value_template: "{{ value_json.messages }}"
     method: GET
     verify_ssl: false
     timeout: 30

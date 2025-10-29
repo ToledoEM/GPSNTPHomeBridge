@@ -3,6 +3,9 @@ NTP_API_Implementation_Documentation.md
 GPS_API_Implementation_Documentation.md
 for_testing.md
 
+#deprecated files
+_deprecated/
+
 # Raw data files
 raw_ntpq_pn.txt
 raw_ntpq_crv.txt
