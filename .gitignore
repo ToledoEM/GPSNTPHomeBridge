@@ -46,6 +46,9 @@ test.json
 test_*.json
 *.test
 
+# Test Container
+test/
+
 # Docker
 Dockerfile.test
 docker-compose.test.yml

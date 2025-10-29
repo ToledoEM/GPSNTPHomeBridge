@@ -1,5 +1,9 @@
 # NTP & GPS Home Bridge
 
+<p align="center">
+  <img src="img/NTP&GPSLogo.png" alt="NTP & GPS Logo">
+</p>
+
 This repository provides NTP and GPS monitoring systems for Home Assistant integration on Raspberry Pi.
 
 ## Architecture
@@ -52,7 +56,7 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 
 /var/www/html/
 ├── ntpq_crv.json                 # Public CRV JSON endpoint
-├── ntpq_pn.json                  # Public peer JSON endpoint
+├── ntpq_pn.json                 # Public peer JSON endpoint
 └── gps.json                      # Public GPS JSON endpoint
 ```
 
@@ -91,7 +95,7 @@ Configure Home Assistant REST sensors to consume these endpoints as described in
 - **Values**: Typically microseconds
 - **Monitoring**: Hardware stability indicator
 
-![Clock Jitter](img/clock_jitter.png)   
+![Clock Jitter](img/clock_jitter.png)
 
 ### 5. Clock Wander
 - **Description**: Long-term frequency stability
