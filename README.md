@@ -209,24 +209,24 @@ sensor:
     name: gps_server
     unique_id: gps_server
     resource: http://YOUR_SERVER_IP/gps.json
-    value_template: "{{ value_json.uSat }}"
+    value_template: "{{ value_json.messages }}"
     method: GET
     verify_ssl: false
     timeout: 30
     force_update: true
-    scan_interval: 15
+    scan_interval: 30
     json_attributes:
       - satellites
-      - nSat
-      - uSat
-      - hdop
-      - vdop
-      - pdop
-      - gdop
-      - tdop
-      - xdop
-      - ydop
-      - time
+      # - nSat
+      # - uSat
+      # - hdop
+      # - vdop
+      # - pdop
+      # - gdop
+      # - tdop
+      # - xdop
+      # - ydop
+      # - time
 ```
 
 #### Template Sensors (Optional)
@@ -237,37 +237,75 @@ Create derived sensors for better dashboard integration:
 template:
   - sensor:
       # NTP Metrics
-      - name: "NTP Stratum"
-        unique_id: "ntp_stratum"
+      - name: "NTP Server Stratum"
         state: "{{ state_attr('sensor.ntp_server_status', 'stratum') }}"
+        unique_id: "ntp_server_stratum"
         state_class: measurement
         icon: mdi:server-network
 
-      - name: "NTP Clock Jitter"
-        unique_id: "ntp_clock_jitter"
+      - name: "NTP Server Frequency"
+        state: "{{ state_attr('sensor.ntp_server_status', 'frequency') }}"
+        unique_id: "ntp_server_frequency"
+        state_class: measurement
+        icon: mdi:speedometer
+
+      - name: "NTP Server System Jitter"
+        state: "{{ state_attr('sensor.ntp_server_status', 'sys_jitter') }}"
+        unique_id: "ntp_server_sys_jitter"
+        state_class: measurement
+        icon: mdi:chart-line
+
+      - name: "NTP Server Clock Jitter"
         state: "{{ state_attr('sensor.ntp_server_status', 'clk_jitter') }}"
-        unit_of_measurement: "s"
+        unique_id: "ntp_server_clk_jitter"
         state_class: measurement
         icon: mdi:clock
 
+      - name: "NTP Server Clock Wander"
+        state: "{{ state_attr('sensor.ntp_server_status', 'clk_wander') }}"
+        unique_id: "ntp_server_clk_wander"
+        state_class: measurement
+        icon: mdi:clock-alert
+
+      - name: "NTP Server Precision"
+        state: "{{ state_attr('sensor.ntp_server_status', 'precision') }}"
+        unique_id: "ntp_server_precision"
+        state_class: measurement
+        icon: mdi:target
+
       # GPS Metrics
-      - name: "GPS Satellites Used"
-        unique_id: "gps_satellites_used"
-        state: "{{ state_attr('sensor.gps_server', 'uSat') }}"
+      - name: "used_satellites"
+        state: "{{ state_attr('sensor.gps_server_rest', 'satellites') | selectattr('used', 'eq', true) | list | length }}"
+        unique_id: "used_satellites"
         state_class: measurement
-        icon: mdi:satellite-variant
 
-      - name: "GPS Satellites Visible"
-        unique_id: "gps_satellites_visible"
-        state: "{{ state_attr('sensor.gps_server', 'nSat') }}"
+      - name: "total_satellites"
+        state: >
+               {% if state_attr('sensor.gps_server_rest', 'satellites') %}
+                 {{ state_attr('sensor.gps_server_rest', 'satellites') | length | int }}
+               {% else %}
+                 0
+               {% endif %}
+        unique_id: "total_satellites"
         state_class: measurement
-        icon: mdi:satellite
 
-      - name: "GPS HDOP"
-        unique_id: "gps_hdop"
-        state: "{{ state_attr('sensor.gps_server', 'hdop') }}"
+      - name: "signal_strength"
+        unique_id: "signal_strength"
         state_class: measurement
-        icon: mdi:map-marker-radius
+        unit_of_measurement: dBm
+        state: >
+             {% set satellites = state_attr('sensor.gps_server_rest', 'satellites') %}
+             {% if satellites %}
+                {% set used_sats = satellites | selectattr('used', 'eq', true) | selectattr('ss', 'defined') | list %}
+                {% if used_sats | length > 0 %}
+                  {{ (used_sats | map(attribute='ss') | map('float') | sum / used_sats | length) | round(2) }}
+                {% else %}
+                  0
+                {% endif %}
+              {% else %}
+               0
+              {% endif %}
+        icon: mdi:signal-variant
 ```
 
 **Important Notes:**
