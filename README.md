@@ -22,6 +22,25 @@ sudo ./gpsntphomebridge.sh
 
 The installer will check for and install required dependencies (NTP, GPSD, Python 3, jq, and a web server if not present), set up directories, copy scripts, configure systemd services, and start the NTP and GPS monitoring services.
 
+### Docker Testing Environment
+
+A Docker container is provided for testing the installer and development purposes only. **The Docker environment is not intended for production use** as it lacks GPS hardware access and proper systemd support, and I just didnt test that. 
+
+```bash
+# Build test container
+docker build -t ntpgps-test .
+
+# Run test container
+docker run -p 8081:80 ntpgps-test
+
+# Test endpoints
+curl http://localhost:8081/ntpq_crv.json
+curl http://localhost:8081/ntpq_pn.json
+curl http://localhost:8081/gps.json
+```
+
+For production deployment, use the installer on a Raspberry Pi with actual GPS hardware.
+
 ## Usage
 
 The services collect NTP and GPS data and serve JSON files at the following endpoints:
