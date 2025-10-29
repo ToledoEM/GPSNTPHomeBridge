@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# NTP Home Bridge Installer
-# Installs NTP monitoring service for Home Assistant integration
+# NTP & GPS Home Bridge Installer
+# Installs NTP and GPS monitoring services for Home Assistant integration
 #
 
 set -e
@@ -13,16 +13,18 @@ export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 trap abort INT QUIT TERM
 
 ######## VARIABLES #########
-# NTP Home Bridge directories
+VERSION="1.0.0"
+REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placeholder
+# NTP & GPS Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
 
 # Scripts
-NTP_SCRIPTS=("ntpq_crv_sensor.py" "ntpq_pn_sensor.py")
+NTP_SCRIPTS=("ntpq_crv_sensor.py" "ntpq_pn_sensor.py" "gps_sensor.py")
 
 # Dependencies
-DEPENDENCIES=("ntp" "python3")
+DEPENDENCIES=("ntp" "python3" "gpsd" "git")
 WEB_SERVERS=("lighttpd" "nginx" "apache2")
 
 # Colors
@@ -108,15 +110,33 @@ create_directories() {
 
 copy_scripts() {
     printf "  %b Copying scripts...\n" "${INFO}"
-    cp scripts/ntpq_crv_sensor.py "$NTP_HOME_DIR/"
-    cp scripts/ntpq_pn_sensor.py "$NTP_HOME_DIR/"
-    cp ntp_service.sh "$NTP_HOME_DIR/"
+    
+    # Check if we're in the repo directory or need to look elsewhere
+    if [[ -f "scripts/ntpq_crv_sensor.py" ]]; then
+        SCRIPT_SOURCE="scripts"
+    elif [[ -f "/tmp/ntphomebridge-repo/scripts/ntpq_crv_sensor.py" ]]; then
+        SCRIPT_SOURCE="/tmp/ntphomebridge-repo/scripts"
+    else
+        printf "%b  %b Cannot find scripts directory\n" "${OVER}" "${CROSS}"
+        exit 1
+    fi
+    
+    cp "$SCRIPT_SOURCE/ntpq_crv_sensor.py" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntpq_pn_sensor.py" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/gps_sensor.py" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/gpsserver.sh" "$NTP_HOME_DIR/"
     chmod +x "$NTP_HOME_DIR/ntp_service.sh"
+    chmod +x "$NTP_HOME_DIR/gpsserver.sh"
+    chmod +x "$NTP_HOME_DIR/ntpq_crv_sensor.py"
+    chmod +x "$NTP_HOME_DIR/ntpq_pn_sensor.py"
+    chmod +x "$NTP_HOME_DIR/gps_sensor.py"
+    echo "$VERSION" > "$NTP_HOME_DIR/version.txt"
     printf "%b  %b Scripts copied\n" "${OVER}" "${TICK}"
 }
 
-setup_systemd_service() {
-    printf "  %b Setting up systemd service...\n" "${INFO}"
+setup_ntp_systemd_service() {
+    printf "  %b Setting up NTP systemd service...\n" "${INFO}"
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
 Description=NTP Home Bridge Service
@@ -135,7 +155,30 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable ntphomebridge.service
-    printf "%b  %b Systemd service configured\n" "${OVER}" "${TICK}"
+    printf "%b  %b NTP systemd service configured\n" "${OVER}" "${TICK}"
+}
+
+setup_gps_systemd_service() {
+    printf "  %b Setting up GPS systemd service...\n" "${INFO}"
+    cat > /etc/systemd/system/gpshomebridge.service << EOF
+[Unit]
+Description=GPS Home Bridge Service
+After=network.target gpsd.service
+
+[Service]
+ExecStart=$NTP_HOME_DIR/gpsserver.sh
+WorkingDirectory=$NTP_HOME_DIR/
+StandardOutput=journal
+StandardError=journal
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable gpshomebridge.service
+    printf "%b  %b GPS systemd service configured\n" "${OVER}" "${TICK}"
 }
 
 configure_webserver() {
@@ -170,10 +213,14 @@ configure_webserver() {
     fi
 }
 
-start_service() {
+start_services() {
     printf "  %b Starting NTP Home Bridge service...\n" "${INFO}"
     systemctl start ntphomebridge.service
-    printf "%b  %b Service started\n" "${OVER}" "${TICK}"
+    printf "%b  %b NTP service started\n" "${OVER}" "${TICK}"
+
+    printf "  %b Starting GPS Home Bridge service...\n" "${INFO}"
+    systemctl start gpshomebridge.service
+    printf "%b  %b GPS service started\n" "${OVER}" "${TICK}"
 }
 
 abort() {
@@ -182,8 +229,8 @@ abort() {
 }
 
 main() {
-    printf "\n%b NTP Home Bridge Installer\n" "${COL_GREEN}"
-    printf "==========================\n\n"
+    printf "\n%b NTP & GPS Home Bridge Installer v$VERSION\n" "${COL_GREEN}"
+    printf "==========================================\n\n"
 
     # Check if root
     if [[ $EUID -ne 0 ]]; then
@@ -191,17 +238,44 @@ main() {
         exit 1
     fi
 
+    # Check if already installed
+    if [[ -d "$NTP_HOME_DIR" ]]; then
+        current_version=$(cat "$NTP_HOME_DIR/version.txt" 2>/dev/null || echo "0.0.0")
+        if [[ "$current_version" == "$VERSION" ]]; then
+            read -p "Already installed with version $VERSION. Reinstall? (y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then exit 0; fi
+        else
+            read -p "New version $VERSION available (current $current_version). Update? (y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then exit 0; fi
+        fi
+    fi
+
+    # Check if we need to clone repo
+    if [[ ! -f "scripts/ntp_service.sh" ]]; then
+        printf "  %b Cloning repository...\n" "${INFO}"
+        git clone "$REPO_URL" /tmp/ntphomebridge-repo
+        cd /tmp/ntphomebridge-repo
+    fi
+
     package_manager_detect
     update_package_cache
     install_dependencies
     create_directories
     copy_scripts
-    setup_systemd_service
+    setup_ntp_systemd_service
+    setup_gps_systemd_service
     configure_webserver
-    start_service
+    start_services
+
+    # Cleanup
+    if [[ -d /tmp/ntphomebridge-repo ]]; then
+        rm -rf /tmp/ntphomebridge-repo
+    fi
 
     printf "\n%b Installation complete!\n" "${TICK}"
-    printf "NTP data will be available at http://your_ip/ntpq_crv.json and http://your_ip/ntpq_pn.json\n"
+    printf "NTP and GPS data will be available at http://your_ip/ntpq_crv.json, http://your_ip/ntpq_pn.json, and http://your_ip/gps.json\n"
 }
 
 main "$@"

@@ -1,0 +1,28 @@
+.git
+.gitignore
+*.md
+!README.md
+img/
+_deprecated/
+test/
+
+# Generated files
+raw_ntpq_pn.txt
+raw_ntpq_crv.txt
+gps.json
+ntpq_crv.json
+ntpq_pn.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log

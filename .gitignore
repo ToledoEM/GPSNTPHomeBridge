@@ -6,12 +6,14 @@ for_testing.md
 #deprecated files
 _deprecated/
 
-# Raw data files
+# Raw data files (but NOT service scripts!)
 raw_ntpq_pn.txt
 raw_ntpq_crv.txt
 gps.json
 ntpq_crv.json
 ntpq_pn.json
+gps_raw.json
+gps_processed.json
 
 # Python
 __pycache__/
