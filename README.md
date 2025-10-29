@@ -6,6 +6,8 @@
 
 This repository provides NTP and GPS monitoring systems for Home Assistant integration on Raspberry Pi.
 
+[https://github.com/ToledoEM/GPSNTPHomeBridge](https://github.com/ToledoEM/GPSNTPHomeBridge)
+
 ## Architecture
 
 ![logical_architecture](img/logic_graphviz.png)
@@ -24,7 +26,7 @@ The installer will check for and install required dependencies (NTP, GPSD, Pytho
 
 ### Docker Testing Environment
 
-A Docker container is provided for testing the installer and development purposes only. **The Docker environment is not intended for production use** as it lacks GPS hardware access and proper systemd support, and I just didnt test that. 
+A Docker container is provided for testing the installer and development purposes only. **The Docker environment is not intended for production use** as it lacks GPS hardware access and proper systemd support, and I just didnt test that.
 
 ```bash
 # Build test container
