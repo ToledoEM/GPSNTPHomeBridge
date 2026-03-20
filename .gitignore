@@ -5,7 +5,7 @@ for_testing.md
 HA_integration_HACS_plans.md
 
 #deprecated files
-_deprecated/
+_deprecated/*
 
 # Raw data files (but NOT service scripts!)
 raw_ntpq_pn.txt
