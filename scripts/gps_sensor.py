@@ -4,12 +4,14 @@ import json
 import sys
 import os
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 def process_gps_data():
     """Process GPS satellite data and output enhanced JSON"""
 
     try:
-        # Read GPS data from gps.json
-        gps_file = 'gps.json'
+        gps_file = os.path.join(SCRIPT_DIR, 'gps.json')
         if not os.path.exists(gps_file):
             print("GPS data file not found", file=sys.stderr)
             return None
@@ -67,6 +69,7 @@ def process_gps_data():
     except Exception as e:
         print(f"Error processing GPS data: {e}", file=sys.stderr)
         return None
+
 
 if __name__ == "__main__":
     data = process_gps_data()

@@ -275,14 +275,14 @@ template:
 
       # GPS Metrics
       - name: "used_satellites"
-        state: "{{ state_attr('sensor.gps_server_rest', 'satellites') | selectattr('used', 'eq', true) | list | length }}"
+        state: "{{ state_attr('sensor.gps_server', 'satellites') | selectattr('used', 'eq', true) | list | length }}"
         unique_id: "used_satellites"
         state_class: measurement
 
       - name: "total_satellites"
         state: >
-               {% if state_attr('sensor.gps_server_rest', 'satellites') %}
-                 {{ state_attr('sensor.gps_server_rest', 'satellites') | length | int }}
+               {% if state_attr('sensor.gps_server', 'satellites') %}
+                 {{ state_attr('sensor.gps_server', 'satellites') | length | int }}
                {% else %}
                  0
                {% endif %}
@@ -294,7 +294,7 @@ template:
         state_class: measurement
         unit_of_measurement: dBm
         state: >
-             {% set satellites = state_attr('sensor.gps_server_rest', 'satellites') %}
+             {% set satellites = state_attr('sensor.gps_server', 'satellites') %}
              {% if satellites %}
                 {% set used_sats = satellites | selectattr('used', 'eq', true) | selectattr('ss', 'defined') | list %}
                 {% if used_sats | length > 0 %}
