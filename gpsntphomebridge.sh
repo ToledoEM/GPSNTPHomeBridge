@@ -9,28 +9,31 @@ set -e
 # Append common folders to the PATH
 export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
-# Trap any errors
-trap abort INT QUIT TERM
-
 ######## VARIABLES #########
-VERSION="1.0.0"
+VERSION="0.1.0"
 REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placeholder
 # NTP & GPS Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
 
-# Scripts
-NTP_SCRIPTS=("ntpq_crv_sensor.py" "ntpq_pn_sensor.py" "gps_sensor.py")
-
-# Dependencies
-DEPENDENCIES=("ntp" "python3" "gpsd" "git")
+# Dependencies (package name -> binary used to detect it; these differ, e.g.
+# the "ntp" package provides "ntpd", so probing for "ntp" would never match)
+DEPENDENCIES=("ntp" "python3" "gpsd" "git" "jq")
+declare -A DEP_BINARY=(
+    [ntp]="ntpd"
+    [python3]="python3"
+    [gpsd]="gpsd"
+    [git]="git"
+    [jq]="jq"
+)
 WEB_SERVERS=("lighttpd" "nginx" "apache2")
 
 # Colors
 COL_NC='\e[0m'
 COL_GREEN='\e[1;32m'
 COL_RED='\e[1;31m'
+OVER="\\r\\033[K"
 TICK="[${COL_GREEN}✓${COL_NC}]"
 CROSS="[${COL_RED}✗${COL_NC}]"
 INFO="[i]"
@@ -68,15 +71,17 @@ update_package_cache() {
 install_dependencies() {
     printf "  %b Installing dependencies...\n" "${INFO}"
     for dep in "${DEPENDENCIES[@]}"; do
-        if ! is_command "$dep"; then
+        # Probe the binary the package provides, not the package name itself
+        local probe="${DEP_BINARY[$dep]:-$dep}"
+        if ! is_command "$probe"; then
             if eval "${PKG_INSTALL} $dep" &>/dev/null; then
-                printf "  %b Installed $dep\n" "${TICK}"
+                printf "  %b Installed %s\n" "${TICK}" "$dep"
             else
-                printf "  %b Failed to install $dep\n" "${CROSS}"
+                printf "  %b Failed to install %s\n" "${CROSS}" "$dep"
                 exit 1
             fi
         else
-            printf "  %b $dep already installed\n" "${INFO}"
+            printf "  %b %s already installed\n" "${INFO}" "$dep"
         fi
     done
 
@@ -158,6 +163,18 @@ EOF
     printf "%b  %b NTP systemd service configured\n" "${OVER}" "${TICK}"
 }
 
+enable_gpsd() {
+    printf "  %b Enabling gpsd...\n" "${INFO}"
+    # gpsd ships socket-activated on Debian; enable both so the GPS service has
+    # something to talk to. Non-fatal: the NTP pipeline works without GPS.
+    systemctl enable gpsd.socket &>/dev/null || true
+    systemctl enable gpsd &>/dev/null || true
+    systemctl start gpsd.socket &>/dev/null || true
+    systemctl start gpsd &>/dev/null || true
+    printf "%b  %b gpsd enabled\n" "${OVER}" "${TICK}"
+    printf "  %b Set the GPS device in /etc/default/gpsd (e.g. DEVICES=\"/dev/ttyAMA0\")\n" "${INFO}"
+}
+
 setup_gps_systemd_service() {
     printf "  %b Setting up GPS systemd service...\n" "${INFO}"
     cat > /etc/systemd/system/gpshomebridge.service << EOF
@@ -228,6 +245,9 @@ abort() {
     exit 1
 }
 
+# Trap interrupts (declared here: abort must be defined first)
+trap abort INT QUIT TERM
+
 main() {
     printf "\n%b NTP & GPS Home Bridge Installer v$VERSION\n" "${COL_GREEN}"
     printf "==========================================\n\n"
@@ -252,18 +272,27 @@ main() {
         fi
     fi
 
-    # Check if we need to clone repo
+    package_manager_detect
+    update_package_cache
+
+    # Fetch the collection scripts when the installer is run on its own, as it
+    # is when downloaded directly. git may not be present on a minimal image,
+    # so install dependencies first.
+    install_dependencies
+
     if [[ ! -f "scripts/ntp_service.sh" ]]; then
         printf "  %b Cloning repository...\n" "${INFO}"
-        git clone "$REPO_URL" /tmp/ntphomebridge-repo
+        rm -rf /tmp/ntphomebridge-repo
+        if ! git clone --depth 1 "$REPO_URL" /tmp/ntphomebridge-repo; then
+            printf "  %b Failed to clone %s\n" "${CROSS}" "$REPO_URL"
+            exit 1
+        fi
         cd /tmp/ntphomebridge-repo
     fi
 
-    package_manager_detect
-    update_package_cache
-    install_dependencies
     create_directories
     copy_scripts
+    enable_gpsd
     setup_ntp_systemd_service
     setup_gps_systemd_service
     configure_webserver

@@ -1,11 +1,8 @@
-# Documentation files (generated)
-NTP_API_Implementation_Documentation.md
-GPS_API_Implementation_Documentation.md
-for_testing.md
-HA_integration_HACS_plans.md
-
 #deprecated files
 _deprecated/*
+
+!custom_components/gps_ntp/brand/
+!custom_components/gps_ntp/brand/*.png
 
 # Raw data files (but NOT service scripts!)
 raw_ntpq_pn.txt
@@ -25,6 +22,13 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.ruff_cache/
+uv.lock
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
 # Virtual environments
 venv/

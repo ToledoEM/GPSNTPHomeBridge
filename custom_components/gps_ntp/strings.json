@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GPS & NTP Home Bridge",
+        "description": "Enter the address of the machine running the bridge. This is the Raspberry Pi with the GPS receiver, not your Home Assistant host.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the host. Check the address and that the services are running.",
+      "invalid_endpoint": "The host answered but did not serve the expected JSON. Check that the bridge is installed and its web server is running."
+    },
+    "abort": {
+      "already_configured": "This bridge is already configured."
+    }
+  }
+}

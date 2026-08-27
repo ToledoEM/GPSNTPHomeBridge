@@ -1,189 +1,104 @@
 # NTP & GPS Home Bridge
 
+[![CI](https://github.com/ToledoEM/GPSNTPHomeBridge/actions/workflows/ci.yml/badge.svg)](https://github.com/ToledoEM/GPSNTPHomeBridge/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ToledoEM/GPSNTPHomeBridge/branch/main/graph/badge.svg)](https://codecov.io/gh/ToledoEM/GPSNTPHomeBridge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Platform: Raspberry Pi](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a.svg)](https://www.raspberrypi.com/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-REST%20sensor-41BDF5.svg)](https://www.home-assistant.io/integrations/rest/)
+
 <p align="center">
   <img src="img/NTP&GPSLogo.png" alt="NTP & GPS Logo">
 </p>
 
-This repository provides NTP and GPS monitoring systems for Home Assistant integration on Raspberry Pi.
+Reads NTP and GPS status from a Raspberry Pi and serves it as JSON over HTTP, so Home Assistant can pick it up with REST sensors.
 
-[https://github.com/ToledoEM/GPSNTPHomeBridge](https://github.com/ToledoEM/GPSNTPHomeBridge)
+Built for the case where you already run a GPS-disciplined NTP server at home and want to see whether it is actually behaving: stratum, jitter, which peers are answering, how many satellites the receiver can see.
 
 ## Architecture
 
 ![logical_architecture](img/logic_graphviz.png)
 
+## Requirements
+
+A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port, and root access. The installer pulls in `ntp`, `gpsd`, `jq`, Python 3 and a web server if you do not already have one.
+
 ## Installation
 
-Download the installer script and review its contents before execution, as running unverified code from the internet is not recommended.
+Run this on the Pi that has the GPS receiver attached, not on your Home Assistant host.
 
-Run the installer as root:
+Download the installer and read it before running it. It runs as root and installs packages:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/ToledoEM/GPSNTPHomeBridge/main/gpsntphomebridge.sh
+less gpsntphomebridge.sh
+sudo bash gpsntphomebridge.sh
+```
+
+If you have already cloned the repository, run it directly:
 
 ```bash
 sudo ./gpsntphomebridge.sh
 ```
 
-The installer will check for and install required dependencies (NTP, GPSD, Python 3, jq, and a web server if not present), set up directories, copy scripts, configure systemd services, and start the NTP and GPS monitoring services.
+It installs the dependencies, copies the collection scripts to `/opt/ntphomebridge/`, sets up two systemd services, and starts them. NTP data refreshes every 60 seconds, GPS every 15.
 
-### Docker Testing Environment
+The installer clones the repository itself when it needs the collection scripts, so downloading the single file is enough to start.
 
-A Docker container is provided for testing the installer and development purposes only. **The Docker environment is not intended for production use** as it lacks GPS hardware access and proper systemd support, and I just didnt test that.
+### GPS device
+
+The installer enables `gpsd` but leaves the device to you, since it depends on your hardware. Set it in `/etc/default/gpsd`:
 
 ```bash
-# Build test container
-docker build -t ntpgps-test .
-
-# Run test container
-docker run -p 8081:80 ntpgps-test
-
-# Test endpoints
-curl http://localhost:8081/ntpq_crv.json
-curl http://localhost:8081/ntpq_pn.json
-curl http://localhost:8081/gps.json
+DEVICES="/dev/ttyAMA0"     # or /dev/ttyUSB0, /dev/ttyACM0, ...
+GPSD_OPTIONS="-n"
 ```
 
-For production deployment, use the installer on a Raspberry Pi with actual GPS hardware.
+Restart with `sudo systemctl restart gpsd`. Check the receiver is talking before you expect anything on the GPS endpoint:
 
-## Usage
+```bash
+gpspipe -w -n 10
+```
 
-The services collect NTP and GPS data and serve JSON files at the following endpoints:
+## Endpoints
 
-| Endpoint | Description | Data Type |
-|----------|-------------|-----------|
-| `http://<server_ip>/ntpq_crv.json` | NTP control variables including stratum, frequency, jitter, and precision metrics | NTP System Status |
-| `http://<server_ip>/ntpq_pn.json` | NTP peer information showing synchronization sources and their status | NTP Peer Data |
-| `http://<server_ip>/gps.json` | GPS satellite data including satellite positions, signal strength, and DOP values | GPS Satellite Data |
+| Endpoint | Contents |
+|----------|----------|
+| `http://<server_ip>/ntpq_crv.json` | Stratum, frequency, jitter, wander, precision, offset and the decoded status flags |
+| `http://<server_ip>/ntpq_pn.json` | One entry per peer: address, tally code, stratum, reach, delay, offset, jitter |
+| `http://<server_ip>/gps.json` | Satellite counts, per-constellation breakdown, average signal strength, DOP values and the raw satellite list |
 
-Configure Home Assistant REST sensors to consume these endpoints as described in the documentation.
+Anyone who can reach the Pi can read these. Keep them on a trusted network, and put a reverse proxy with auth in front if you need more than that.
 
 ![ntpq_crv](img/ntpq_crv.png)
 
 ![ntpq_pn](img/ntpq_pn.png)
 
+## Home Assistant
 
-## Directory Structure
+Two ways to get the data in. The custom integration sets everything up from the UI and is the easier option. The REST sensor YAML below still works if you would rather configure it by hand.
 
-```bash
-/opt/ntphomebridge/
-├── ntp_service.sh                 # NTP service script
-├── gpsserver.sh                   # GPS service script
-├── ntpq_crv_sensor.py            # CRV data parser
-├── ntpq_pn_sensor.py             # Peer data parser
-├── gps_sensor.py                 # GPS data processor
-├── raw_ntpq_crv.txt              # Raw CRV output
-├── raw_ntpq_pn.txt               # Raw peer output
-├── gps.json                      # GPS data output
-├── ntpq_crv.json                 # Processed CRV JSON
-└── ntpq_pn.json                  # Processed peer JSON
+### Custom integration
 
-/var/www/html/
-├── ntpq_crv.json                 # Public CRV JSON endpoint
-├── ntpq_pn.json                 # Public peer JSON endpoint
-└── gps.json                      # Public GPS JSON endpoint
-```
+In HACS, add `https://github.com/ToledoEM/GPSNTPHomeBridge` as a custom repository with category **Integration**, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi.
 
+It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown are attached as attributes.
 
-## Files
+The integration polls at the same rate the services refresh: NTP every 60 seconds, GPS every 15.
 
-- `gpsntphomebridge.sh`: Installer script
-- `ntp_service.sh`: NTP service script
-- `gpsserver.sh`: GPS service script
-- `scripts/ntpq_crv_sensor.py`: CRV data parser
-- `scripts/ntpq_pn_sensor.py`: Peer data parser
-- `scripts/gps_sensor.py`: GPS data processor
-- `README.md`: This file
-- `LICENSE`: MIT license
+### REST sensors
 
+Add these to `configuration.yaml`, then restart Home Assistant. Replace `YOUR_SERVER_IP` with the address of your Pi.
 
-## Key Metrics Explained
-
-### 1. Stratum
-- **Description**: Indicates the distance from a reference clock
-- **Values**: 0 (reference clock), 1 (directly connected), 2+ (network distance)
-- **Monitoring**: Lower values indicate better time source quality
-
-### 2. Frequency
-- **Description**: Frequency offset in parts per million (PPM)
-- **Values**: Typically -100 to +100 PPM
-- **Monitoring**: Stable values indicate good oscillator performance
-
-### 3. System Jitter
-- **Description**: System clock jitter in seconds
-- **Values**: Typically microseconds to milliseconds
-- **Monitoring**: Lower values indicate more stable timing
-
-### 4. Clock Jitter
-- **Description**: Clock hardware jitter in seconds
-- **Values**: Typically microseconds
-- **Monitoring**: Hardware stability indicator
-
-![Clock Jitter](img/clock_jitter.png)
-
-### 5. Clock Wander
-- **Description**: Long-term frequency stability
-- **Values**: Typically very small (< 0.001)
-- **Monitoring**: Indicates oscillator aging and temperature effects
-
-![Clock Wander](img/clock_wander.png)
-
-### 6. Precision
-- **Description**: System clock precision (log₂ seconds)
-- **Values**: Negative values (e.g., -20 = 2^-20 seconds ≈ 1 microsecond)
-- **Monitoring**: Hardware capability indicator
-
-## GPS Metrics Explained
-
-![GPS in Home Assistant](img/gps.png)
-
-
-### 1. Satellite Information
-- **PRN**: Pseudo-Random Noise code (unique satellite identifier)
-- **Elevation**: Angle above horizon (0-90 degrees)
-- **Azimuth**: Angle from north (0-360 degrees)
-- **SNR**: Signal strength/SNR (0-50+ dB)
-- **Used**: Boolean indicating if satellite is used in position fix
-
-### 2. Dilution of Precision (DOP) Values
-- **HDOP**: Horizontal Dilution of Precision (position accuracy)
-- **VDOP**: Vertical Dilution of Precision (altitude accuracy)
-- **PDOP**: Position Dilution of Precision (3D position accuracy)
-- **GDOP**: Geometric Dilution of Precision (time and position)
-
-**DOP Guidelines:**
-- < 1: Excellent
-- 1-2: Good
-- 2-5: Moderate
-- 5-10: Fair
-- > 10: Poor
-
-### 3. Satellite Counts
-- **Total Satellites**: Number of satellites in view
-- **Used Satellites**: Number of satellites used in position calculation
-- **Satellite Ratio**: Percentage of used vs visible satellites
-
-## Security Considerations
-
-1. **Firewall Configuration**: Only expose HTTP endpoints to trusted networks
-2. **Authentication**: Consider adding basic auth for production deployments
-3. **HTTPS**: Use HTTPS in production environments
-4. **Rate Limiting**: Implement rate limiting to prevent abuse of your own system
-
-
-## HOME ASSISTANT INTEGRATION
-
-### RESTful Sensor Configuration
-
-Add the following configuration to your Home Assistant `configuration.yaml` file to integrate the NTP and GPS monitoring endpoints.
-
-#### NTP Server Monitoring
+#### NTP
 
 ```yaml
-# NTP Server Status Sensor
 sensor:
   - platform: rest
     name: ntp_server_status
     unique_id: ntp_server_status
     resource: http://YOUR_SERVER_IP/ntpq_crv.json
-    value_template: "{{ value_json.messages }}"
+    value_template: "{{ value_json.stratum }}"
     method: GET
     verify_ssl: false
     timeout: 30
@@ -198,45 +113,46 @@ sensor:
       - precision
       - offset
       - refid
+      - status
+      - status_flags
 ```
 
-#### GPS Satellite Monitoring
+The sensor state is the stratum. Everything else lands in attributes. `status_flags` holds the decoded words from the `ntpq` status line, such as `leap_none`, `sync_ntp` and `clock_sync`.
+
+#### GPS
 
 ```yaml
-# GPS Server Sensor
 sensor:
   - platform: rest
     name: gps_server
     unique_id: gps_server
     resource: http://YOUR_SERVER_IP/gps.json
-    value_template: "{{ value_json.messages }}"
+    value_template: "{{ value_json.used_satellites }}"
     method: GET
     verify_ssl: false
     timeout: 30
     force_update: true
     scan_interval: 30
     json_attributes:
+      - total_satellites
+      - used_satellites
+      - satellite_ratio
+      - avg_signal_strength
+      - gnss_breakdown
+      - dop_values
+      - timestamp
       - satellites
-      # - nSat
-      # - uSat
-      # - hdop
-      # - vdop
-      # - pdop
-      # - gdop
-      # - tdop
-      # - xdop
-      # - ydop
-      # - time
 ```
 
-#### Template Sensors (Optional)
+The counts, constellation breakdown and average signal strength arrive precomputed, so read them as attributes instead of recalculating them in a template.
 
-Create derived sensors for better dashboard integration:
+#### Template sensors
+
+Split the attributes into their own entities if you want to graph them:
 
 ```yaml
 template:
   - sensor:
-      # NTP Metrics
       - name: "NTP Server Stratum"
         state: "{{ state_attr('sensor.ntp_server_status', 'stratum') }}"
         unique_id: "ntp_server_stratum"
@@ -273,62 +189,95 @@ template:
         state_class: measurement
         icon: mdi:target
 
-      # GPS Metrics
       - name: "used_satellites"
-        state: "{{ state_attr('sensor.gps_server', 'satellites') | selectattr('used', 'eq', true) | list | length }}"
+        state: "{{ state_attr('sensor.gps_server', 'used_satellites') }}"
         unique_id: "used_satellites"
         state_class: measurement
+        icon: mdi:satellite-variant
 
       - name: "total_satellites"
-        state: >
-               {% if state_attr('sensor.gps_server', 'satellites') %}
-                 {{ state_attr('sensor.gps_server', 'satellites') | length | int }}
-               {% else %}
-                 0
-               {% endif %}
+        state: "{{ state_attr('sensor.gps_server', 'total_satellites') }}"
         unique_id: "total_satellites"
         state_class: measurement
+        icon: mdi:satellite-variant
 
       - name: "signal_strength"
+        state: "{{ state_attr('sensor.gps_server', 'avg_signal_strength') }}"
         unique_id: "signal_strength"
         state_class: measurement
-        unit_of_measurement: dBm
-        state: >
-             {% set satellites = state_attr('sensor.gps_server', 'satellites') %}
-             {% if satellites %}
-                {% set used_sats = satellites | selectattr('used', 'eq', true) | selectattr('ss', 'defined') | list %}
-                {% if used_sats | length > 0 %}
-                  {{ (used_sats | map(attribute='ss') | map('float') | sum / used_sats | length) | round(2) }}
-                {% else %}
-                  0
-                {% endif %}
-              {% else %}
-               0
-              {% endif %}
+        unit_of_measurement: dBHz
         icon: mdi:signal-variant
+
+      - name: "satellite_ratio"
+        state: "{{ state_attr('sensor.gps_server', 'satellite_ratio') | round(1) }}"
+        unique_id: "satellite_ratio"
+        state_class: measurement
+        unit_of_measurement: "%"
+        icon: mdi:percent
+
+      - name: "glonass_satellites"
+        state: "{{ (state_attr('sensor.gps_server', 'gnss_breakdown') or {}).get('glonass', 0) }}"
+        unique_id: "glonass_satellites"
+        state_class: measurement
+        icon: mdi:satellite-variant
+
+      - name: "gps_hdop"
+        state: "{{ (state_attr('sensor.gps_server', 'dop_values') or {}).get('hdop', 0) }}"
+        unique_id: "gps_hdop"
+        state_class: measurement
+        icon: mdi:crosshairs-gps
 ```
 
-**Important Notes:**
-- Replace `YOUR_SERVER_IP` with the actual IP address of your NTP/GPS server
-- Adjust `scan_interval` based on your monitoring needs (values in seconds)
-- For detailed configuration and advanced sensors, refer to the [NTP API Documentation](NTP_API_Implementation_Documentation.md) and [GPS API Documentation](GPS_API_Implementation_Documentation.md)
-- Restart Home Assistant after adding these configurations
+gpsd reports signal strength in dB-Hz, not dBm.
 
-### Dashboard Example
-
-Create a simple entities card in your dashboard:
+#### Dashboard
 
 ```yaml
 type: entities
 title: NTP & GPS Monitoring
 entities:
-  - entity: sensor.ntp_stratum
-  - entity: sensor.ntp_clock_jitter
-  - entity: sensor.gps_satellites_used
-  - entity: sensor.gps_satellites_visible
+  - entity: sensor.ntp_server_stratum
+  - entity: sensor.ntp_server_clock_jitter
+  - entity: sensor.used_satellites
+  - entity: sensor.total_satellites
+  - entity: sensor.signal_strength
   - entity: sensor.gps_hdop
 ```
 
+These entity IDs come from the `name:` values above. Rename a sensor and the card needs the same change.
+
+![GPS in Home Assistant](img/gps.png)
+
+## Reading the numbers
+
+### NTP
+
+`stratum` is how far you sit from a reference clock. A working GPS setup should read 1, meaning the Pi is attached to one directly. 2 or more means it fell back to syncing over the network. 16 means it gave up and is not synchronised at all.
+
+`frequency` is the correction applied to the local oscillator in parts per million, usually somewhere between -100 and +100. The absolute number matters less than whether it holds still. Steady drift usually turns out to be temperature.
+
+`sys_jitter` and `clk_jitter` measure short-term instability in seconds, normally microseconds to milliseconds, and lower is better. The first covers the time source as a whole, the second only the local hardware.
+
+![Clock Jitter](img/clock_jitter.png)
+
+`clk_wander` tracks stability over longer periods and usually stays under 0.001. Expect it to creep up as an oscillator ages or the room warms.
+
+![Clock Wander](img/clock_wander.png)
+
+`precision` is clock resolution as a power of two. -20 works out to 2^-20 seconds, near enough a microsecond.
+
+`reach` records whether each of the last eight polls got an answer, served as a decimal number. 255 means all eight landed, 0 means the peer has gone quiet, and anything between means you are dropping responses.
+
+`tally` is the verdict `ntpq` reached about each peer: `*` for the one in use, `+` for a viable candidate, `-` for an outlier it threw out, blank for one it is ignoring.
+
+### GPS
+
+Every satellite reports `PRN` as its identifier, `el` for degrees above the horizon, `az` for degrees from north, `ss` for signal strength in dB-Hz, and `used` for whether it fed into the current fix.
+
+`satellite_ratio` is the share of visible satellites that made it into the fix. `gnss_breakdown` splits the count across GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS, IMES and NavIC.
+
+The DOP figures describe how much satellite geometry is hurting accuracy: `hdop` for horizontal position, `vdop` for altitude, `pdop` for the 3D fix, `gdop` for position and time together. Under 1 is excellent, 1 to 2 is good, 2 to 5 is workable, and past 10 there is not much point trusting it.
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+MIT. See [LICENSE](LICENSE).

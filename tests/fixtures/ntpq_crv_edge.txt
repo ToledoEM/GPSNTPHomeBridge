@@ -1,0 +1,1 @@
+stratum=2, refid=192.168.1.1, =orphan, novalue
