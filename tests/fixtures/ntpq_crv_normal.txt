@@ -1,0 +1,7 @@
+associd=0 status=0615 leap_none, sync_ntp, 1 event, clock_sync,
+version="ntpd 4.2.8p15@1.3728-o Wed, Feb 16 2022", processor="aarch64",
+system="Linux/6.1.0-rpi7-rpi-v8", leap=00, stratum=2, precision=-20,
+rootdelay=12.345, rootdisp=32.211, refid=192.168.1.1,
+reftime=0xeb1a2c3d.12345678, clock=0xeb1a2d01.9abcdef0, peer=12345, tc=10,
+mintc=3, offset=-0.045123, frequency=-4.371, sys_jitter=0.123456,
+clk_jitter=0.089, clk_wander=0.012

@@ -1,0 +1,2 @@
+associd=0 status=0615 leap_none, sync_ntp, 1 event, clock_sync,
+version="unterminated quote

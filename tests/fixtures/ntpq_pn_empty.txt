@@ -1,0 +1,2 @@
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================

@@ -1,0 +1,5 @@
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+*192.168.1.1     10.0.0.1         ? u   45   64  zzz     bogus   -0.045   0.123
+ short line with too few fields
+ 10.0.0.5        .INIT.          16 u    -   64    0    0.000   +0.000   0.000
