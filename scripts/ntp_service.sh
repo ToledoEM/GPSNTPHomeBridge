@@ -6,6 +6,16 @@
 WORK_DIR="/opt/ntphomebridge"
 WEB_ROOT="/var/www/html"
 
+# Publish a file to the web root atomically: write to a temp file on the same
+# filesystem, then rename. A plain cp truncates the target first, so a client
+# polling the endpoint can read a half-written or empty file.
+publish() {
+    local src="$1" dest="$2" tmp="${2}.tmp"
+    if cp "$src" "$tmp" 2>/dev/null; then
+        mv -f "$tmp" "$dest" 2>/dev/null || rm -f "$tmp"
+    fi
+}
+
 while true; do
     # Collect ntpq -c rv data
     ntpq -c rv > "${WORK_DIR}/raw_ntpq_crv.txt" 2>/dev/null || echo 'error="NTP not responding"' > "${WORK_DIR}/raw_ntpq_crv.txt"
@@ -19,9 +29,9 @@ while true; do
     # Process PN data
     python3 "${WORK_DIR}/ntpq_pn_sensor.py" > "${WORK_DIR}/ntpq_pn.json" 2>/dev/null || echo '{"error":"PN processing failed"}' > "${WORK_DIR}/ntpq_pn.json"
 
-    # Copy to web root
-    cp "${WORK_DIR}/ntpq_crv.json" "${WEB_ROOT}/" 2>/dev/null || true
-    cp "${WORK_DIR}/ntpq_pn.json" "${WEB_ROOT}/" 2>/dev/null || true
+    # Publish to web root
+    publish "${WORK_DIR}/ntpq_crv.json" "${WEB_ROOT}/ntpq_crv.json"
+    publish "${WORK_DIR}/ntpq_pn.json" "${WEB_ROOT}/ntpq_pn.json"
 
     # Wait 60 seconds before next collection
     sleep 60

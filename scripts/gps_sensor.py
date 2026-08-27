@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 
 import json
-import sys
 import os
+import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# gnssid -> constellation, per the gpsd JSON protocol (gpsd_json, SKY, Table 30)
+GNSS_IDS = {
+    0: 'gps',
+    1: 'sbas',
+    2: 'galileo',
+    3: 'beidou',
+    4: 'imes',
+    5: 'qzss',
+    6: 'glonass',
+    7: 'navic',
+}
 
 
 def process_gps_data():
@@ -16,7 +28,7 @@ def process_gps_data():
             print("GPS data file not found", file=sys.stderr)
             return None
 
-        with open(gps_file, 'r') as f:
+        with open(gps_file) as f:
             gps_data = json.load(f)
 
         # Extract satellite information
@@ -28,12 +40,8 @@ def process_gps_data():
 
         # GNSS breakdown
         gnss_counts = {
-            'gps': len([s for s in satellites if s.get('gnssid') == 0]),
-            'glonass': len([s for s in satellites if s.get('gnssid') == 1]),
-            'galileo': len([s for s in satellites if s.get('gnssid') == 2]),
-            'beidou': len([s for s in satellites if s.get('gnssid') == 3]),
-            'qzss': len([s for s in satellites if s.get('gnssid') == 4]),
-            'sbas': len([s for s in satellites if s.get('gnssid') == 5])
+            name: len([s for s in satellites if s.get('gnssid') == gnssid])
+            for gnssid, name in sorted(GNSS_IDS.items())
         }
 
         # Signal strength average for used satellites
@@ -44,12 +52,16 @@ def process_gps_data():
             if signal_strengths:
                 avg_signal_strength = sum(signal_strengths) / len(signal_strengths)
 
+        satellite_ratio = (
+            used_satellites / total_satellites * 100 if total_satellites > 0 else 0
+        )
+
         # Enhanced GPS data
         enhanced_data = {
             'timestamp': gps_data.get('time'),
             'total_satellites': total_satellites,
             'used_satellites': used_satellites,
-            'satellite_ratio': (used_satellites / total_satellites * 100) if total_satellites > 0 else 0,
+            'satellite_ratio': satellite_ratio,
             'avg_signal_strength': round(avg_signal_strength, 2),
             'gnss_breakdown': gnss_counts,
             'dop_values': {
