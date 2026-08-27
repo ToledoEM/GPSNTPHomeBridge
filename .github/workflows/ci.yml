@@ -28,7 +28,23 @@ jobs:
       # churn unrelated to any behaviour.
       - uses: astral-sh/ruff-action@v3
         with:
-          args: check scripts/ tests/
+          args: check scripts/ tests/ custom_components/
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
 
   test:
     name: Pytest

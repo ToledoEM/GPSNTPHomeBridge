@@ -1,6 +1,11 @@
 #deprecated files
 _deprecated/*
 
+# Brand assets for the HACS integration. A local .git/info/exclude rule for
+# *.png would otherwise keep these out of the repository.
+!brand/
+!brand/*.png
+
 # Raw data files (but NOT service scripts!)
 raw_ntpq_pn.txt
 raw_ntpq_crv.txt

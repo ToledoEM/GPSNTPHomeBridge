@@ -25,13 +25,25 @@ A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port
 
 ## Installation
 
-Read the installer before you run it. It runs as root and installs packages.
+Run this on the Pi that has the GPS receiver attached, not on your Home Assistant host.
+
+Download the installer and read it before running it. It runs as root and installs packages:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/ToledoEM/GPSNTPHomeBridge/main/gpsntphomebridge.sh
+less gpsntphomebridge.sh
+sudo bash gpsntphomebridge.sh
+```
+
+If you have already cloned the repository, run it directly:
 
 ```bash
 sudo ./gpsntphomebridge.sh
 ```
 
 It installs the dependencies, copies the collection scripts to `/opt/ntphomebridge/`, sets up two systemd services, and starts them. NTP data refreshes every 60 seconds, GPS every 15.
+
+The installer clones the repository itself when it needs the collection scripts, so downloading the single file is enough to start.
 
 ### GPS device
 
@@ -64,9 +76,21 @@ Anyone who can reach the Pi can read these. Keep them on a trusted network, and 
 
 ## Home Assistant
 
-Add the REST sensors to `configuration.yaml`, then restart Home Assistant. Replace `YOUR_SERVER_IP` with the address of your Pi.
+Two ways to get the data in. The custom integration sets everything up from the UI and is the easier option. The REST sensor YAML below still works if you would rather configure it by hand.
 
-### NTP
+### Custom integration
+
+In HACS, add `https://github.com/ToledoEM/GPSNTPHomeBridge` as a custom repository with category **Integration**, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi.
+
+It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown are attached as attributes.
+
+The integration polls at the same rate the services refresh: NTP every 60 seconds, GPS every 15.
+
+### REST sensors
+
+Add these to `configuration.yaml`, then restart Home Assistant. Replace `YOUR_SERVER_IP` with the address of your Pi.
+
+#### NTP
 
 ```yaml
 sensor:
@@ -95,7 +119,7 @@ sensor:
 
 The sensor state is the stratum. Everything else lands in attributes. `status_flags` holds the decoded words from the `ntpq` status line, such as `leap_none`, `sync_ntp` and `clock_sync`.
 
-### GPS
+#### GPS
 
 ```yaml
 sensor:
@@ -122,7 +146,7 @@ sensor:
 
 The counts, constellation breakdown and average signal strength arrive precomputed, so read them as attributes instead of recalculating them in a template.
 
-### Template sensors
+#### Template sensors
 
 Split the attributes into their own entities if you want to graph them:
 
@@ -206,7 +230,7 @@ template:
 
 gpsd reports signal strength in dB-Hz, not dBm.
 
-### Dashboard
+#### Dashboard
 
 ```yaml
 type: entities

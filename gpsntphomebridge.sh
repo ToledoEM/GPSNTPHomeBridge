@@ -272,16 +272,24 @@ main() {
         fi
     fi
 
-    # Check if we need to clone repo
+    package_manager_detect
+    update_package_cache
+
+    # Fetch the collection scripts when the installer is run on its own, as it
+    # is when downloaded directly. git may not be present on a minimal image,
+    # so install dependencies first.
+    install_dependencies
+
     if [[ ! -f "scripts/ntp_service.sh" ]]; then
         printf "  %b Cloning repository...\n" "${INFO}"
-        git clone "$REPO_URL" /tmp/ntphomebridge-repo
+        rm -rf /tmp/ntphomebridge-repo
+        if ! git clone --depth 1 "$REPO_URL" /tmp/ntphomebridge-repo; then
+            printf "  %b Failed to clone %s\n" "${CROSS}" "$REPO_URL"
+            exit 1
+        fi
         cd /tmp/ntphomebridge-repo
     fi
 
-    package_manager_detect
-    update_package_cache
-    install_dependencies
     create_directories
     copy_scripts
     enable_gpsd
