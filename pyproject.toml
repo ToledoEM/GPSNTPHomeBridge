@@ -1,0 +1,30 @@
+[project]
+name = "gpsntphomebridge"
+version = "0.1.0"
+description = "NTP and GPS monitoring endpoints for Home Assistant"
+requires-python = ">=3.9"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# The tests run the parsers as subprocesses, so coverage has to follow them or
+# it measures nothing. COVERAGE_PROCESS_START + the sitecustomize hook in
+# tests/ is what makes that work.
+branch = true
+parallel = true
+source = ["scripts"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]

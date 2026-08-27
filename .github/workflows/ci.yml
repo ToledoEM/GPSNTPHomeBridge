@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Lint only. Formatting is deliberately not enforced: the existing
+      # parsers use single quotes throughout and reformatting them would be
+      # churn unrelated to any behaviour.
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: check scripts/ tests/
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov coverage
+
+      - name: Run tests with coverage
+        # The parsers run as subprocesses; COVERAGE_PROCESS_START plus the
+        # sitecustomize hook in tests/ is what makes them measurable.
+        env:
+          COVERAGE_PROCESS_START: ${{ github.workspace }}/pyproject.toml
+        run: pytest tests/ -v --cov --cov-report=xml --cov-report=term --cov-fail-under=95
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: true
+
+  docker:
+    name: Docker endpoints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ntpgps-test .
+
+      - name: Start container
+        run: docker run -d --name ntpgps -p 8081:80 ntpgps-test
+
+      - name: Wait for endpoints
+        run: |
+          for i in $(seq 30); do
+            if curl -sf http://localhost:8081/ntpq_crv.json >/dev/null; then
+              echo "endpoints up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "endpoints did not come up"
+          docker logs ntpgps
+          exit 1
+
+      - name: Assert every endpoint serves parseable JSON
+        run: |
+          for endpoint in ntpq_crv.json ntpq_pn.json gps.json; do
+            echo "--- $endpoint"
+            body=$(curl -sf "http://localhost:8081/$endpoint")
+            if [ -z "$body" ]; then
+              echo "$endpoint returned an empty body"
+              exit 1
+            fi
+            echo "$body" | jq -e . >/dev/null || {
+              echo "$endpoint is not valid JSON:"
+              echo "$body"
+              exit 1
+            }
+          done
+
+      - name: Endpoints never serve a partial read
+        run: |
+          fail=0
+          for i in $(seq 100); do
+            curl -sf http://localhost:8081/gps.json | jq -e . >/dev/null || fail=$((fail + 1))
+          done
+          echo "$fail bad reads out of 100"
+          test "$fail" -eq 0
+
+      - name: Container logs
+        if: always()
+        run: docker logs ntpgps
