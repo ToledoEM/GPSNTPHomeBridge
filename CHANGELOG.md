@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.1] - 2026-08-27
+
+Release cut for submission to the HACS default store. No functional change to the integration.
+
+### Changed
+- `manifest.json` version is now `0.1.1`, matching the release tag. The `v0.1` tag and the `0.1.0` manifest version disagreed, which HACS surfaces in its UI
+
 ## [0.1.0] - 2026-08-27
 
 First tagged release.
