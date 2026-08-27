@@ -1,10 +1,8 @@
 #deprecated files
 _deprecated/*
 
-# Brand assets for the HACS integration. A local .git/info/exclude rule for
-# *.png would otherwise keep these out of the repository.
-!brand/
-!brand/*.png
+!custom_components/gps_ntp/brand/
+!custom_components/gps_ntp/brand/*.png
 
 # Raw data files (but NOT service scripts!)
 raw_ntpq_pn.txt

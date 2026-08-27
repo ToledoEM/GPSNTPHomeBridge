@@ -1,12 +1,12 @@
 {
   "domain": "gps_ntp",
   "name": "GPS & NTP Home Bridge",
-  "version": "0.1.0",
-  "documentation": "https://github.com/ToledoEM/GPSNTPHomeBridge",
-  "issue_tracker": "https://github.com/ToledoEM/GPSNTPHomeBridge/issues",
   "codeowners": ["@ToledoEM"],
-  "requirements": [],
-  "iot_class": "local_polling",
   "config_flow": true,
-  "integration_type": "service"
+  "documentation": "https://github.com/ToledoEM/GPSNTPHomeBridge",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/ToledoEM/GPSNTPHomeBridge/issues",
+  "requirements": [],
+  "version": "0.1.0"
 }
