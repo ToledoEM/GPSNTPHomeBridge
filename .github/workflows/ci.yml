@@ -65,7 +65,11 @@ jobs:
           COVERAGE_PROCESS_START: ${{ github.workspace }}/pyproject.toml
         run: pytest tests/ -v --cov --cov-report=xml --cov-report=term --cov-fail-under=95
 
+      # Dependabot pull requests do not receive repository secrets, so the
+      # token is empty there and the upload cannot succeed. Skip it rather
+      # than fail the run; the coverage gate above already ran.
       - name: Upload coverage to Codecov
+        if: github.actor != 'dependabot[bot]'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
