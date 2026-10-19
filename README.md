@@ -25,7 +25,7 @@ A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port
 
 ## Installation
 
-[Open your Home Assistant instance and install via HACS.](https://my.home-assistant.io/redirect/hacs_repository/?owner=ToledoEM&repository=GPSNTPHomeBridge&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ToledoEM&repository=GPSNTPHomeBridge&category=integration)
 
 Run this on the Pi that has the GPS receiver attached, not on your Home Assistant host.
 
