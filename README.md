@@ -25,7 +25,7 @@ A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port
 
 ## Installation
 
-[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ToledoEM&repository=GPSNTPHomeBridge&category=integration)
+[Open your Home Assistant instance and install via HACS.](https://my.home-assistant.io/redirect/hacs_repository/?owner=ToledoEM&repository=GPSNTPHomeBridge&category=integration)
 
 Run this on the Pi that has the GPS receiver attached, not on your Home Assistant host.
 
@@ -81,6 +81,8 @@ Anyone who can reach the Pi can read these. Keep them on a trusted network, and 
 Two ways to get the data in. The custom integration sets everything up from the UI and is the easier option. The REST sensor YAML below still works if you would rather configure it by hand.
 
 ### Custom integration
+
+Open your Home Assistant instance and install via HACS.
 
 In HACS, add `https://github.com/ToledoEM/GPSNTPHomeBridge` as a custom repository with category **Integration**, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi. Home Assistant can run on any device on the network, as long as it can reach the Pi over HTTP.
 
