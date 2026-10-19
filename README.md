@@ -25,6 +25,8 @@ A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port
 
 ## Installation
 
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ToledoEM&repository=GPSNTPHomeBridge&category=integration)
+
 Run this on the Pi that has the GPS receiver attached, not on your Home Assistant host.
 
 Download the installer and read it before running it. It runs as root and installs packages:
@@ -80,7 +82,7 @@ Two ways to get the data in. The custom integration sets everything up from the 
 
 ### Custom integration
 
-In HACS, add `https://github.com/ToledoEM/GPSNTPHomeBridge` as a custom repository with category **Integration**, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi.
+In HACS, add `https://github.com/ToledoEM/GPSNTPHomeBridge` as a custom repository with category **Integration**, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi. Home Assistant can run on any device on the network, as long as it can reach the Pi over HTTP.
 
 It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown are attached as attributes.
 
