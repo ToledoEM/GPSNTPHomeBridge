@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 # Base tooling only. ntp, gpsd, git and jq are deliberately NOT installed here:
 # the installer is responsible for those, so this image doubles as a test that
