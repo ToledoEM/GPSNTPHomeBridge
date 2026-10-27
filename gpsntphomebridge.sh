@@ -315,7 +315,7 @@ main() {
                 shift
                 ;;
             -h|--help)
-                echo "Usage: $0 [--skip-gpsd] [--web-root WEBROOT]"
+                printf "%b  Usage: $0 [--skip-gpsd] [--web-root WEBROOT] [--ntp-server ntpd/chrony]\n" "${OVER}"
                 exit 0
                 ;;
             *)
