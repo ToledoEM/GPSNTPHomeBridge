@@ -16,7 +16,7 @@ REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placehol
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
-NTP_SERVER="ntp"
+NTP_SERVER="ntpd"
 
 # Dependencies (package name -> binary used to detect it; these differ, e.g.
 # the "ntp" package provides "ntpd", so probing for "ntp" would never match)
@@ -307,12 +307,12 @@ main() {
                 SKIP_GPSD=1
                 ;;
             --ntp-server)
-                [ -n "$2" ] || { echo "--ntp-server needs a value" >&2; usage >&2; exit 1; }
+                [ -n "$2" ] || { printf "%b --ntp-server needs a value\n" "${CROSS}"; usage >&2; exit 1; }
                 NTP_SERVER="$2"
                 shift
                 ;;
             --web-root)
-                [ -n "$2" ] || { echo "--web-root needs a value" >&2; exit 1; }
+                [ -n "$2" ] || { printf "%b --web-root needs a value\n" "${CROSS}" >&2; exit 1; }
                 WEB_ROOT="$2"
                 shift
                 ;;
@@ -321,8 +321,7 @@ main() {
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $1" >&2
-                echo "Usage: $0 [--skip-gpsd]" >&2
+                printf "%b Unknown option: $1\n" "${CROSS}"
                 exit 1
                 ;;
         esac
@@ -333,7 +332,7 @@ main() {
         ntpd|chrony)
             ;;
         *)
-            echo "Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)" >&2
+            printf "%b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)\n" "${CROSS}"
             exit 1
             ;;
     esac
