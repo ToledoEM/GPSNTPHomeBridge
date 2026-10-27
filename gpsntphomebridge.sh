@@ -48,6 +48,11 @@ is_command() {
     command -v "$1" >/dev/null 2>&1
 }
 
+get_ip() {
+    ip -4 route get 1.1.1.1 2>/dev/null \
+        | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}'
+}
+
 package_manager_detect() {
     if is_command apt-get; then
         PKG_MANAGER="apt-get"
@@ -380,8 +385,9 @@ main() {
         rm -rf /tmp/ntphomebridge-repo
     fi
 
+    SERVER_IP=$(get_ip)
     printf "\n%b Installation complete!\n" "${TICK}"
-    printf "NTP and GPS data will be available at http://your_ip/ntpq_crv.json, http://your_ip/ntpq_pn.json, and http://your_ip/gps.json\n"
+    printf "NTP and GPS data will be available at http://${SERVER_IP}/ntpq_crv.json, http://${SERVER_IP}/ntpq_pn.json, and http://${SERVER_IP}/gps.json\n"
 }
 
 main "$@"
