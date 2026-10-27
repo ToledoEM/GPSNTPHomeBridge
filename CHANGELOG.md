@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-10-26
+
+### Added
+- Support for `chrony` added alongside ntpd (`scripts/ntp_service_chrony.sh`)
+- Configuration support (/etc/ntphomebridge/bridge.env) added to override WEB_ROOT
+- Command line flags `--web-root`, `--ntp-server`, `--skip-gpsd` added to installer
+
+### Fixed
+- `gpspipe` output no longer accepts the first value which could contain no "satellites" array in newer versions of gpsd
+
 ## [0.1.1] - 2026-08-27
 
 Release cut for submission to the HACS default store. No functional change to the integration.

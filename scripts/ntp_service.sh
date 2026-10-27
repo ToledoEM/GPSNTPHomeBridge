@@ -4,7 +4,14 @@
 # Collects NTP data and generates JSON files
 
 WORK_DIR="/opt/ntphomebridge"
-WEB_ROOT="/var/www/html"
+NTP_CONFIG_DIR="/etc/ntphomebridge"
+
+ENV_FILE="$NTP_CONFIG_DIR/bridge.env"
+if [ -f "$ENV_FILE" ]; then
+  . $ENV_FILE
+else
+  WEB_ROOT="/var/www/html"
+fi
 
 # Publish a file to the web root atomically: write to a temp file on the same
 # filesystem, then rename. A plain cp truncates the target first, so a client

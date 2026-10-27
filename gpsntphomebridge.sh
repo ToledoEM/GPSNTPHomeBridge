@@ -10,24 +10,28 @@ set -e
 export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 ######## VARIABLES #########
-VERSION="0.1.0"
+VERSION="0.2.0"
 REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placeholder
 # NTP & GPS Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
+NTP_SERVER="ntp"
 
 # Dependencies (package name -> binary used to detect it; these differ, e.g.
 # the "ntp" package provides "ntpd", so probing for "ntp" would never match)
-DEPENDENCIES=("ntp" "python3" "gpsd" "git" "jq")
+# gpsd-clients is required for "gpspipe" in latest versions of Raspbian
+# it will be ignored if gpspipe already exists from a previous install (like on CentOS/Fedora/etc)
+DEPENDENCIES=("python3" "gpsd" "git" "jq" "gpspipe")
 declare -A DEP_BINARY=(
-    [ntp]="ntpd"
     [python3]="python3"
     [gpsd]="gpsd"
+    [gpsd-clients]="gpspipe"
     [git]="git"
     [jq]="jq"
 )
 WEB_SERVERS=("lighttpd" "nginx" "apache2")
+NTP_SERVERS=("chronyc" "ntpq")
 
 # Colors
 COL_NC='\e[0m'
@@ -70,6 +74,20 @@ update_package_cache() {
 
 install_dependencies() {
     printf "  %b Installing dependencies...\n" "${INFO}"
+
+    # Set up for our specified NTP server
+    case "$NTP_SERVER" in
+      ntpd)
+        DEP_BINARY[ntp]="ntpd"
+        DEPENDENCIES+=("ntp")
+        ;;
+      chrony)
+        DEP_BINARY[chronyc]="chrony"
+        DEPENDENCIES+=("chrony")
+        ;;
+    esac
+
+    # Loop packages to install missing binaries if needed
     for dep in "${DEPENDENCIES[@]}"; do
         # Probe the binary the package provides, not the package name itself
         local probe="${DEP_BINARY[$dep]:-$dep}"
@@ -130,8 +148,10 @@ copy_scripts() {
     cp "$SCRIPT_SOURCE/ntpq_pn_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gps_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/ntp_service.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service_chrony.sh" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gpsserver.sh" "$NTP_HOME_DIR/"
     chmod +x "$NTP_HOME_DIR/ntp_service.sh"
+    chmod +x "$NTP_HOME_DIR/ntp_service_chrony.sh"
     chmod +x "$NTP_HOME_DIR/gpsserver.sh"
     chmod +x "$NTP_HOME_DIR/ntpq_crv_sensor.py"
     chmod +x "$NTP_HOME_DIR/ntpq_pn_sensor.py"
@@ -140,15 +160,36 @@ copy_scripts() {
     printf "%b  %b Scripts copied\n" "${OVER}" "${TICK}"
 }
 
+configure_env() {
+    printf "  %b Configuring environment file...\n" "${INFO}"
+    echo "WEB_ROOT=$WEB_ROOT" > "$NTP_CONFIG_DIR/bridge.env"
+    printf "%b  %b Environment file written\n" "${OVER}" "${TICK}"
+}
+
 setup_ntp_systemd_service() {
     printf "  %b Setting up NTP systemd service...\n" "${INFO}"
+    local ntp_server=""
+    for ntpsrv in "${NTP_SERVERS[@]}"; do
+        if is_command "$ntpsrv"; then
+            ntp_server="ntpsrv"
+            break
+        fi
+    done
+
+    BINARY="ntp_service.sh"
+
+    # If chronyc is detected, use the chrony version of the script instead
+    if [ "$ntp_server" == "chronyc" ]; then
+      BINARY="ntp_service_chrony.sh"
+    fi
+
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
 Description=NTP Home Bridge Service
 After=network.target
 
 [Service]
-ExecStart=$NTP_HOME_DIR/ntp_service.sh
+ExecStart=$NTP_HOME_DIR/$BINARY
 WorkingDirectory=$NTP_HOME_DIR/
 StandardOutput=journal
 StandardError=journal
@@ -258,6 +299,45 @@ main() {
         exit 1
     fi
 
+    SKIP_GPSD=0
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --skip-gpsd)
+                SKIP_GPSD=1
+                ;;
+            --ntp-server)
+                [ -n "$2" ] || { echo "--ntp-server needs a value" >&2; usage >&2; exit 1; }
+                NTP_SERVER="$2"
+                shift
+                ;;
+            --web-root)
+                [ -n "$2" ] || { echo "--web-root needs a value" >&2; exit 1; }
+                WEB_ROOT="$2"
+                shift
+                ;;
+            -h|--help)
+                echo "Usage: $0 [--skip-gpsd] [--web-root WEBROOT]"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 [--skip-gpsd]" >&2
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
+    case "$NTP_SERVER" in
+        ntpd|chrony)
+            ;;
+        *)
+            echo "Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)" >&2
+            exit 1
+            ;;
+    esac
+
     # Check if already installed
     if [[ -d "$NTP_HOME_DIR" ]]; then
         current_version=$(cat "$NTP_HOME_DIR/version.txt" 2>/dev/null || echo "0.0.0")
@@ -292,7 +372,12 @@ main() {
 
     create_directories
     copy_scripts
-    enable_gpsd
+
+    if [ "$SKIP_GPSD" -eq 0 ]; then
+      enable_gpsd
+    fi
+
+    configure_env
     setup_ntp_systemd_service
     setup_gps_systemd_service
     configure_webserver
