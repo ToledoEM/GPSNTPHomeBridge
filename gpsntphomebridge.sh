@@ -168,18 +168,11 @@ configure_env() {
 
 setup_ntp_systemd_service() {
     printf "  %b Setting up NTP systemd service...\n" "${INFO}"
-    local ntp_server=""
-    for ntpsrv in "${NTP_SERVERS[@]}"; do
-        if is_command "$ntpsrv"; then
-            ntp_server="ntpsrv"
-            break
-        fi
-    done
 
     BINARY="ntp_service.sh"
 
     # If chronyc is detected, use the chrony version of the script instead
-    if [ "$ntp_server" == "chronyc" ]; then
+    if [ "$NTP_SERVER" == "chrony" ]; then
       BINARY="ntp_service_chrony.sh"
     fi
 
