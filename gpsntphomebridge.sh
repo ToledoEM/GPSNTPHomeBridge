@@ -172,7 +172,7 @@ configure_env() {
 }
 
 setup_ntp_systemd_service() {
-    printf "  %b Setting up NTP systemd service...\n" "${INFO}"
+    printf "  %b Setting up NTP systemd service for $NTP_SERVER...\n" "${INFO}"
 
     BINARY="ntp_service.sh"
 
@@ -305,12 +305,12 @@ main() {
                 SKIP_GPSD=1
                 ;;
             --ntp-server)
-                [ -n "$2" ] || { printf "%b --ntp-server needs a value\n" "${CROSS}"; usage >&2; exit 1; }
+                [ -n "$2" ] || { printf "%b  %b --ntp-server needs a value\n" "${OVER}" "${CROSS}"; usage >&2; exit 1; }
                 NTP_SERVER="$2"
                 shift
                 ;;
             --web-root)
-                [ -n "$2" ] || { printf "%b --web-root needs a value\n" "${CROSS}" >&2; exit 1; }
+                [ -n "$2" ] || { printf "%b  %b --web-root needs a value\n" "${OVER}" "${CROSS}" >&2; exit 1; }
                 WEB_ROOT="$2"
                 shift
                 ;;
@@ -319,7 +319,7 @@ main() {
                 exit 0
                 ;;
             *)
-                printf "%b Unknown option: $1\n" "${CROSS}"
+                printf "%b  %b Unknown option: $1\n" "${OVER}" "${CROSS}"
                 exit 1
                 ;;
         esac
@@ -330,7 +330,7 @@ main() {
         ntpd|chrony)
             ;;
         *)
-            printf "%b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)\n" "${CROSS}"
+            printf "%b  %b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)\n" "${OVER}" "${CROSS}"
             exit 1
             ;;
     esac
