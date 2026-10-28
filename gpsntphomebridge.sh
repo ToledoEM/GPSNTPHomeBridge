@@ -20,8 +20,6 @@ NTP_SERVER="ntpd"
 
 # Dependencies (package name -> binary used to detect it; these differ, e.g.
 # the "ntp" package provides "ntpd", so probing for "ntp" would never match)
-# gpsd-clients is required for "gpspipe" in latest versions of Raspbian
-# it will be ignored if gpspipe already exists from a previous install (like on CentOS/Fedora/etc)
 DEPENDENCIES=("python3" "gpsd" "git" "jq")
 declare -A DEP_BINARY=(
     [python3]="python3"
@@ -51,8 +49,10 @@ get_ip() {
         | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}'
 }
 
+# Messages go in as %s arguments, never into the format string, so a path or
+# value containing % or \ is printed as-is.
 log() {
-    printf "  %b $1\n" "$2"
+    printf "  %b %s\n" "$2" "$1"
 }
 
 log_info() {
@@ -64,19 +64,34 @@ log_tick() {
 }
 
 log_cross() {
-  log "$1" "${CROSS}"
+    log "$1" "${CROSS}"
 }
 
 log_over() {
-  printf "%b  %b $1\n" "${OVER}" "$2"
+    printf "%b  %b %s\n" "${OVER}" "$2" "$1"
 }
 
 log_tick_over() {
-  log_over "$1" "${TICK}"
+    log_over "$1" "${TICK}"
 }
 
 log_cross_over() {
-  log_over "$1" "${CROSS}"
+    log_over "$1" "${CROSS}"
+}
+
+usage() {
+    cat << EOF
+Usage: $0 [--ntp-server ntpd|chronyd] [--web-root DIR] [--skip-gpsd]
+
+  --ntp-server ntpd|chronyd  NTP daemon to report on (default: ntpd).
+                             On apt systems installing chrony removes ntp.
+  --web-root DIR             Directory the JSON files are published to
+                             (default: /var/www/html). Point it at a directory
+                             your web server already serves.
+  --skip-gpsd                Do not enable or start gpsd (for existing setups).
+                             gpsd is still installed if missing.
+  -h, --help                 Show this help.
+EOF
 }
 
 package_manager_detect() {
@@ -108,14 +123,17 @@ install_dependencies() {
 
     # Set up for our specified NTP server
     case "$NTP_SERVER" in
-      ntpd)
-        DEP_BINARY[ntp]="ntpd"
-        DEPENDENCIES+=("ntp")
-        ;;
-      chronyd)
-        DEP_BINARY[chrony]="chronyd"
-        DEPENDENCIES+=("chrony")
-        ;;
+        ntpd)
+            DEP_BINARY[ntp]="ntpd"
+            DEPENDENCIES+=("ntp")
+            ;;
+        chronyd)
+            DEP_BINARY[chrony]="chronyd"
+            DEPENDENCIES+=("chrony")
+            if is_command ntpd && ! is_command chronyd; then
+                log_info "ntpd found: installing chrony will replace it"
+            fi
+            ;;
     esac
 
     # Loop packages to install missing binaries if needed
@@ -194,7 +212,8 @@ copy_scripts() {
 
 configure_env() {
     log_info "Configuring environment file..."
-    echo "WEB_ROOT=$WEB_ROOT" > "$NTP_CONFIG_DIR/bridge.env"
+    # %q quotes the value so a path with spaces survives being sourced
+    printf 'WEB_ROOT=%q\n' "$WEB_ROOT" > "$NTP_CONFIG_DIR/bridge.env"
     log_tick_over "Environment file written"
 }
 
@@ -316,12 +335,7 @@ main() {
     printf "\n%b NTP & GPS Home Bridge Installer v$VERSION\n" "${COL_GREEN}"
     printf "==========================================\n\n%b" "${OVER}"
 
-    # Check if root
-    if [[ $EUID -ne 0 ]]; then
-        printf "%b This script must be run as root\n" "${CROSS}"
-        exit 1
-    fi
-
+    # Parse flags before the root check so --help works for any user
     SKIP_GPSD=0
 
     while [ $# -gt 0 ]; do
@@ -330,21 +344,22 @@ main() {
                 SKIP_GPSD=1
                 ;;
             --ntp-server)
-                [ -n "$2" ] || { log_cross_over "--ntp-server needs a value"; usage >&2; exit 1; }
+                [ -n "$2" ] || { log_cross_over "--ntp-server needs a value" >&2; usage >&2; exit 1; }
                 NTP_SERVER="$2"
                 shift
                 ;;
             --web-root)
-                [ -n "$2" ] || { log_cross_over "--web-root needs a value" >&2; exit 1; }
+                [ -n "$2" ] || { log_cross_over "--web-root needs a value" >&2; usage >&2; exit 1; }
                 WEB_ROOT="$2"
                 shift
                 ;;
             -h|--help)
-                log_over "Usage: $0 [--skip-gpsd] [--web-root WEBROOT] [--ntp-server ntpd/chronyd]\n" "${OVER}"
+                usage
                 exit 0
                 ;;
             *)
-                log_cross_over "Unknown option: $1"
+                log_cross_over "Unknown option: $1" >&2
+                usage >&2
                 exit 1
                 ;;
         esac
@@ -361,10 +376,17 @@ main() {
             NTP_SERVER=chronyd
             ;;
         *)
-            printf "%b  %b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chronyd)\n" "${OVER}" "${CROSS}"
+            log_cross_over "Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chronyd)" >&2
+            usage >&2
             exit 1
             ;;
     esac
+
+    # Check if root
+    if [[ $EUID -ne 0 ]]; then
+        printf "%b This script must be run as root\n" "${CROSS}"
+        exit 1
+    fi
 
     # Check if already installed
     if [[ -d "$NTP_HOME_DIR" ]]; then
@@ -402,7 +424,7 @@ main() {
     copy_scripts
 
     if [ "$SKIP_GPSD" -eq 0 ]; then
-      enable_gpsd
+        enable_gpsd
     fi
 
     configure_env
@@ -419,12 +441,12 @@ main() {
     SERVER_IP=$(get_ip)
 
     if [ -z "$SERVER_IP" ]; then
-      SERVER_IP="<your ip>"
+        SERVER_IP="<your ip>"
     fi
 
     printf "\n%b Installation complete!\n" "${TICK}"
     printf "NTP and GPS data will be available at http://%s/ntpq_crv.json, http://%s/ntpq_pn.json, and http://%s/gps.json\n" \
-      "$SERVER_IP" "$SERVER_IP" "$SERVER_IP"
+        "$SERVER_IP" "$SERVER_IP" "$SERVER_IP"
 }
 
 main "$@"
