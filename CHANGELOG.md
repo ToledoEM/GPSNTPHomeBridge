@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - `gpspipe` output no longer accepts the first value which could contain no "satellites" array in newer versions of gpsd
+- Removed dependency on `gpsd-clients` which was not previously satisfied by dependency installation
 
 ## [0.1.1] - 2026-08-27
 

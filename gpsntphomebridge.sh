@@ -30,7 +30,6 @@ declare -A DEP_BINARY=(
     [jq]="jq"
 )
 WEB_SERVERS=("lighttpd" "nginx" "apache2")
-NTP_SERVERS=("chronyc" "ntpq")
 
 # Colors
 COL_NC='\e[0m'
@@ -58,6 +57,14 @@ log() {
 
 log_info() {
     log "$1" "${INFO}"
+}
+
+log_tick() {
+    log "$1" "${TICK}"
+}
+
+log_cross() {
+  log "$1" "${CROSS}"
 }
 
 log_over() {
@@ -132,7 +139,7 @@ install_dependencies() {
     local web_server_installed=false
     for ws in "${WEB_SERVERS[@]}"; do
         if is_command "$ws"; then
-            printf "  %b $ws already installed\n" "${INFO}"
+            log_info "$ws already installed"
             web_server_installed=true
             break
         fi
@@ -140,9 +147,9 @@ install_dependencies() {
     if [[ "$web_server_installed" == false ]]; then
         log_info "No web server found, installing lighttpd..."
         if eval "${PKG_INSTALL} lighttpd" &>/dev/null; then
-            printf "  %b Installed lighttpd\n" "${TICK}"
+            log_tick "Installed lighttpd"
         else
-            printf "  %b Failed to install lighttpd\n" "${CROSS}"
+            log_cross "Failed to install lighttpd"
             exit 1
         fi
     fi
@@ -307,7 +314,7 @@ trap abort INT QUIT TERM
 
 main() {
     printf "\n%b NTP & GPS Home Bridge Installer v$VERSION\n" "${COL_GREEN}"
-    printf "==========================================\n\n"
+    printf "==========================================\n\n%b" "${OVER}"
 
     # Check if root
     if [[ $EUID -ne 0 ]]; then
