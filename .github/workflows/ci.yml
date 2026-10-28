@@ -107,6 +107,23 @@ jobs:
           docker logs ntpgps
           exit 1
 
+      # The collection loop runs every 60s and its first pass can beat the
+      # daemon's startup, so allow one full cycle before calling it a failure.
+      - name: NTP daemon answers
+        run: |
+          for i in $(seq 90); do
+            body=$(curl -sf http://localhost:8081/ntpq_crv.json || true)
+            if echo "$body" | jq -e 'has("error") | not' >/dev/null 2>&1; then
+              echo "${{ matrix.ntp_server }} answered after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "ntpq_crv.json still reports an error:"
+          echo "$body"
+          docker logs ntpgps
+          exit 1
+
       - name: Assert every endpoint serves parseable JSON
         run: |
           for endpoint in ntpq_crv.json ntpq_pn.json gps.json; do
