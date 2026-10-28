@@ -296,11 +296,11 @@ configure_webserver() {
 
 start_services() {
     log_info "Starting NTP Home Bridge service..."
-    systemctl start ntphomebridge.service
+    systemctl restart ntphomebridge.service
     log_tick_over "NTP service started"
 
     log_info "Starting GPS Home Bridge service..."
-    systemctl start gpshomebridge.service
+    systemctl restart gpshomebridge.service
     log_tick_over "GPS service started"
 }
 
