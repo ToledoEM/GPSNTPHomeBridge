@@ -9,7 +9,7 @@ NTP_CONFIG_DIR="/etc/ntphomebridge"
 ENV_FILE="$NTP_CONFIG_DIR/bridge.env"
 if [ -f "$ENV_FILE" ]; then
   # shellcheck source=/dev/null
-  . $ENV_FILE
+  . "$ENV_FILE"
 else
   WEB_ROOT="/var/www/html"
 fi

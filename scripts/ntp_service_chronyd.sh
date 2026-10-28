@@ -9,7 +9,7 @@ NTP_CONFIG_DIR="/etc/ntphomebridge"
 ENV_FILE="$NTP_CONFIG_DIR/bridge.env"
 if [ -f "$ENV_FILE" ]; then
   # shellcheck source=/dev/null
-  . $ENV_FILE
+  . "$ENV_FILE"
 else
   WEB_ROOT="/var/www/html"
 fi
@@ -43,7 +43,6 @@ JQ_CRV="$JQ_DEFS"'
 ($stats | stddevs) as $sd
 | $tracking | rows[0] as $r
 | {
-    messages: $r[13],
     refid: $r[1],
     stratum: ($r[2] | tonumber),
     offset: ($r[5] | tonumber | neg_ms),
