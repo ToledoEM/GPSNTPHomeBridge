@@ -7,7 +7,8 @@ from conftest import REPO_ROOT
 
 SHELL_SCRIPTS = [
     "gpsntphomebridge.sh",
-    "scripts/ntp_service.sh",
+    "scripts/ntp_service_ntpd.sh",
+    "scripts/ntp_service_chronyd.sh",
     "scripts/gpsserver.sh",
 ]
 
