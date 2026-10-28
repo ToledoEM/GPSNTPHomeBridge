@@ -88,9 +88,20 @@ JQ_PN="$JQ_DEFS"'
 # Per-NTP-source refid and round-trip delay, as CSV: address,refid,delay
 ntpdata_csv() {
     chronyc -n ntpdata 2>/dev/null | awk '
+        function hexbyte(h,   d) {
+            d = "0123456789ABCDEF"
+            return (index(d, substr(h, 1, 1)) - 1) * 16 + index(d, substr(h, 2, 1)) - 1
+        }
         { val = $0; sub(/^[^:]*: /, "", val) }
         /^Remote address/ { split(val, a, " "); addr = a[1] }
-        /^Reference ID/   { refid = val; sub(/^[^(]*\(/, "", refid); sub(/\).*$/, "", refid) }
+        /^Reference ID/   {
+            split(val, a, " "); hex = toupper(a[1])
+            refid = val; sub(/^[^(]*\(/, "", refid); sub(/\).*$/, "", refid)
+            # IP refids come as hex with empty brackets: 8B8F051E () -> 139.143.5.30
+            if (refid == "" && length(hex) == 8 && hex !~ /[^0-9A-F]/ && hex != "00000000")
+                refid = hexbyte(substr(hex, 1, 2)) "." hexbyte(substr(hex, 3, 2)) "." \
+                        hexbyte(substr(hex, 5, 2)) "." hexbyte(substr(hex, 7, 2))
+        }
         /^Peer delay/     { split(val, a, " "); print addr "," refid "," a[1] }'
 }
 

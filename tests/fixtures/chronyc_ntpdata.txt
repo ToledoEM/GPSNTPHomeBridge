@@ -1,0 +1,8 @@
+
+Remote address  : 45.154.197.21 (2D9AC515)
+Reference ID    : 8B8F051E ()
+Peer delay      : 0.021414597 seconds
+
+Remote address  : 45.138.55.61 (2D8A373D)
+Reference ID    : 47505300 (GPS)
+Peer delay      : 0.026143211 seconds
