@@ -8,6 +8,7 @@ NTP_CONFIG_DIR="/etc/ntphomebridge"
 
 ENV_FILE="$NTP_CONFIG_DIR/bridge.env"
 if [ -f "$ENV_FILE" ]; then
+  # shellcheck source=/dev/null
   . $ENV_FILE
 else
   WEB_ROOT="/var/www/html"
@@ -25,6 +26,7 @@ publish() {
 
 # Shared jq helpers: CSV text -> rows, octal string -> int,
 # sourcestats -> {name: stddev_seconds}, seconds -> ms (rounded to the ns)
+# shellcheck disable=SC2016  # jq variables, not shell
 JQ_DEFS='
 def rows: split("\n") | map(select(length > 0) | split(","));
 def octal: split("") | reduce .[] as $d (0; . * 8 + ($d | tonumber));
@@ -36,6 +38,7 @@ def neg_ms: (0 - .) | ms;
 # System status, mapped onto the ntpq -c rv field names.
 # ntpq units: offset/jitter/root delay/dispersion in ms, frequency/wander in ppm.
 # chrony offsets are local-minus-source; ntpq is source-minus-local, so negate.
+# shellcheck disable=SC2016  # jq variables, not shell
 JQ_CRV="$JQ_DEFS"'
 ($stats | stddevs) as $sd
 | $tracking | rows[0] as $r
@@ -56,6 +59,7 @@ JQ_CRV="$JQ_DEFS"'
 '
 
 # Source list in the same shape the ntpq -pn parser produced.
+# shellcheck disable=SC2016  # jq variables, not shell
 JQ_PN="$JQ_DEFS"'
 ($stats | stddevs) as $sd
 | ($ntp | rows | map({key: .[0], value: {refid: .[1], delay: (.[2] | tonumber)}}) | from_entries) as $nd

@@ -204,7 +204,7 @@ setup_ntp_systemd_service() {
     BINARY="ntp_service_${NTP_SERVER}.sh"
 
     # Link the binary to ntp_service.sh to maintain compatibility
-    ln -sfn $NTP_HOME_DIR/$BINARY $NTP_HOME_DIR/ntp_service.sh
+    ln -sfn "$NTP_HOME_DIR/$BINARY" "$NTP_HOME_DIR/ntp_service.sh"
 
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
@@ -423,7 +423,8 @@ main() {
     fi
 
     printf "\n%b Installation complete!\n" "${TICK}"
-    printf "NTP and GPS data will be available at http://${SERVER_IP}/ntpq_crv.json, http://${SERVER_IP}/ntpq_pn.json, and http://${SERVER_IP}/gps.json\n"
+    printf "NTP and GPS data will be available at http://%s/ntpq_crv.json, http://%s/ntpq_pn.json, and http://%s/gps.json\n" \
+      "$SERVER_IP" "$SERVER_IP" "$SERVER_IP"
 }
 
 main "$@"
