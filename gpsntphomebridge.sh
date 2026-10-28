@@ -22,11 +22,10 @@ NTP_SERVER="ntpd"
 # the "ntp" package provides "ntpd", so probing for "ntp" would never match)
 # gpsd-clients is required for "gpspipe" in latest versions of Raspbian
 # it will be ignored if gpspipe already exists from a previous install (like on CentOS/Fedora/etc)
-DEPENDENCIES=("python3" "gpsd" "git" "jq" "gpspipe")
+DEPENDENCIES=("python3" "gpsd" "git" "jq")
 declare -A DEP_BINARY=(
     [python3]="python3"
     [gpsd]="gpsd"
-    [gpsd-clients]="gpspipe"
     [git]="git"
     [jq]="jq"
 )
@@ -91,7 +90,6 @@ update_package_cache() {
     log_info "Updating package cache..."
     if eval "${UPDATE_PKG_CACHE}" &>/dev/null; then
         log_over "Package cache updated" "${TICK}"
-        printf "%b  %b Package cache updated\n" "${OVER}" "${TICK}"
     else
         log_over "Failed to update package cache" "${CROSS}"
         exit 1
@@ -107,7 +105,7 @@ install_dependencies() {
         DEP_BINARY[ntp]="ntpd"
         DEPENDENCIES+=("ntp")
         ;;
-      chrony)
+      chronyd)
         DEP_BINARY[chrony]="chronyd"
         DEPENDENCIES+=("chrony")
         ;;
@@ -118,6 +116,7 @@ install_dependencies() {
         # Probe the binary the package provides, not the package name itself
         local probe="${DEP_BINARY[$dep]:-$dep}"
         if ! is_command "$probe"; then
+            log_info "Installing $dep..."
             if eval "${PKG_INSTALL} $dep" &>/dev/null; then
                 printf "  %b Installed %s\n" "${TICK}" "$dep"
             else
@@ -411,6 +410,11 @@ main() {
     fi
 
     SERVER_IP=$(get_ip)
+
+    if [ -z "$SERVER_IP" ]; then
+      SERVER_IP="<your ip>"
+    fi
+
     printf "\n%b Installation complete!\n" "${TICK}"
     printf "NTP and GPS data will be available at http://${SERVER_IP}/ntpq_crv.json, http://${SERVER_IP}/ntpq_pn.json, and http://${SERVER_IP}/gps.json\n"
 }

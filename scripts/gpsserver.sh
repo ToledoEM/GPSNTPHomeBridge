@@ -26,15 +26,18 @@ publish() {
 }
 
 while true; do
-    # Collect GPS data using gpspipe. Match the class field rather than a bare
-    # "SKY" so a device path or other field containing SKY cannot be mistaken
-    # for a SKY record. Scan enough messages to get past VERSION/DEVICES.
+    # Talk to gpsd directly instead of via gpspipe (which needs gpsd-clients
+    # and its GTK/matplotlib dependencies). Same output as "gpspipe -w".
     # gpsd sends several SKY reports per cycle, and some carry only DOPs and
     # counts with no satellites array. Take the first one that lists satellites.
-    if timeout 10 gpspipe -w -n 100 2>/dev/null \
-        | jq -cn 'first(inputs | select(.class == "SKY" and (.satellites | length) > 0))' \
-            > "${WORK_DIR}/gps.json.tmp" 2>/dev/null \
-        && [ -s "${WORK_DIR}/gps.json.tmp" ]; then
+    if timeout 10 bash -c '
+                exec 3<>/dev/tcp/127.0.0.1/2947
+                printf "%s\n" "?WATCH={\"enable\":true,\"json\":true}" >&3
+                cat <&3
+            ' 2>/dev/null \
+            | jq -cn 'first(inputs | select(.class == "SKY" and (.satellites | length) > 0))' \
+                > "${WORK_DIR}/gps.json.tmp" 2>/dev/null \
+            && [ -s "${WORK_DIR}/gps.json.tmp" ]; then
         mv -f "${WORK_DIR}/gps.json.tmp" "${WORK_DIR}/gps.json"
     else
         rm -f "${WORK_DIR}/gps.json.tmp"
