@@ -79,14 +79,20 @@ jobs:
   docker:
     name: Docker endpoints
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ntp_server: [ntpd, chronyd]
     steps:
       - uses: actions/checkout@v7
 
       - name: Build image
-        run: docker build -t ntpgps-test .
+        run: |
+          docker build \
+          --build-arg NTP_SERVER=${{ matrix.ntp_server }} \
+          -t ntpgps-test:${{ matrix.ntp_server }} .
 
       - name: Start container
-        run: docker run -d --name ntpgps -p 8081:80 ntpgps-test
+        run: docker run -d --name ntpgps -p 8081:80 ntpgps-test:${{ matrix.ntp_server }}
 
       - name: Wait for endpoints
         run: |

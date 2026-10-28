@@ -53,6 +53,26 @@ get_ip() {
         | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}'
 }
 
+log() {
+    printf "  %b $1\n" "$2"
+}
+
+log_info() {
+    log "$1" "${INFO}"
+}
+
+log_over() {
+  printf "%b  %b $1\n" "${OVER}" "$2"
+}
+
+log_tick_over() {
+  log_over "$1" "${TICK}"
+}
+
+log_cross_over() {
+  log_over "$1" "${CROSS}"
+}
+
 package_manager_detect() {
     if is_command apt-get; then
         PKG_MANAGER="apt-get"
@@ -62,23 +82,24 @@ package_manager_detect() {
         PKG_MANAGER="yum"
         PKG_INSTALL="${PKG_MANAGER} install -y"
     else
-        printf "  %b No supported package manager found\n" "${CROSS}"
+        log_over "No supported package manager found" "${CROSS}"
         exit 1
     fi
 }
 
 update_package_cache() {
-    printf "  %b Updating package cache...\n" "${INFO}"
+    log_info "Updating package cache..."
     if eval "${UPDATE_PKG_CACHE}" &>/dev/null; then
+        log_over "Package cache updated" "${TICK}"
         printf "%b  %b Package cache updated\n" "${OVER}" "${TICK}"
     else
-        printf "%b  %b Failed to update package cache\n" "${OVER}" "${CROSS}"
+        log_over "Failed to update package cache" "${CROSS}"
         exit 1
     fi
 }
 
 install_dependencies() {
-    printf "  %b Installing dependencies...\n" "${INFO}"
+    log_info "Installing dependencies..."
 
     # Set up for our specified NTP server
     case "$NTP_SERVER" in
@@ -87,7 +108,7 @@ install_dependencies() {
         DEPENDENCIES+=("ntp")
         ;;
       chrony)
-        DEP_BINARY[chronyc]="chrony"
+        DEP_BINARY[chrony]="chronyd"
         DEPENDENCIES+=("chrony")
         ;;
     esac
@@ -118,7 +139,7 @@ install_dependencies() {
         fi
     done
     if [[ "$web_server_installed" == false ]]; then
-        printf "  %b No web server found, installing lighttpd...\n" "${INFO}"
+        log_info "No web server found, installing lighttpd..."
         if eval "${PKG_INSTALL} lighttpd" &>/dev/null; then
             printf "  %b Installed lighttpd\n" "${TICK}"
         else
@@ -129,15 +150,15 @@ install_dependencies() {
 }
 
 create_directories() {
-    printf "  %b Creating directories...\n" "${INFO}"
+    log_info "Creating directories..."
     mkdir -p "$NTP_HOME_DIR"
     mkdir -p "$NTP_CONFIG_DIR"
     mkdir -p "$WEB_ROOT"
-    printf "%b  %b Directories created\n" "${OVER}" "${TICK}"
+    log_tick_over "Directories created"
 }
 
 copy_scripts() {
-    printf "  %b Copying scripts...\n" "${INFO}"
+    log_info "Copying scripts..."
     
     # Check if we're in the repo directory or need to look elsewhere
     if [[ -f "scripts/ntpq_crv_sensor.py" ]]; then
@@ -152,34 +173,32 @@ copy_scripts() {
     cp "$SCRIPT_SOURCE/ntpq_crv_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/ntpq_pn_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gps_sensor.py" "$NTP_HOME_DIR/"
-    cp "$SCRIPT_SOURCE/ntp_service.sh" "$NTP_HOME_DIR/"
-    cp "$SCRIPT_SOURCE/ntp_service_chrony.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service_ntpd.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service_chronyd.sh" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gpsserver.sh" "$NTP_HOME_DIR/"
-    chmod +x "$NTP_HOME_DIR/ntp_service.sh"
-    chmod +x "$NTP_HOME_DIR/ntp_service_chrony.sh"
+    chmod +x "$NTP_HOME_DIR/ntp_service_ntpd.sh"
+    chmod +x "$NTP_HOME_DIR/ntp_service_chronyd.sh"
     chmod +x "$NTP_HOME_DIR/gpsserver.sh"
     chmod +x "$NTP_HOME_DIR/ntpq_crv_sensor.py"
     chmod +x "$NTP_HOME_DIR/ntpq_pn_sensor.py"
     chmod +x "$NTP_HOME_DIR/gps_sensor.py"
     echo "$VERSION" > "$NTP_HOME_DIR/version.txt"
-    printf "%b  %b Scripts copied\n" "${OVER}" "${TICK}"
+    log_tick_over "Scripts copied"
 }
 
 configure_env() {
-    printf "  %b Configuring environment file...\n" "${INFO}"
+    log_info "Configuring environment file..."
     echo "WEB_ROOT=$WEB_ROOT" > "$NTP_CONFIG_DIR/bridge.env"
-    printf "%b  %b Environment file written\n" "${OVER}" "${TICK}"
+    log_tick_over "Environment file written"
 }
 
 setup_ntp_systemd_service() {
-    printf "  %b Setting up NTP systemd service for $NTP_SERVER...\n" "${INFO}"
+    log_info "Setting up NTP systemd service for $NTP_SERVER..."
 
-    BINARY="ntp_service.sh"
+    BINARY="ntp_service_${NTP_SERVER}.sh"
 
-    # If chronyc is detected, use the chrony version of the script instead
-    if [ "$NTP_SERVER" == "chrony" ]; then
-      BINARY="ntp_service_chrony.sh"
-    fi
+    # Link the binary to ntp_service.sh to maintain compatibility
+    ln -sfn $NTP_HOME_DIR/$BINARY $NTP_HOME_DIR/ntp_service.sh
 
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
@@ -199,23 +218,23 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable ntphomebridge.service
-    printf "%b  %b NTP systemd service configured\n" "${OVER}" "${TICK}"
+    log_tick_over "NTP systemd service configured"
 }
 
 enable_gpsd() {
-    printf "  %b Enabling gpsd...\n" "${INFO}"
+    log_info "Enabling gpsd..."
     # gpsd ships socket-activated on Debian; enable both so the GPS service has
     # something to talk to. Non-fatal: the NTP pipeline works without GPS.
     systemctl enable gpsd.socket &>/dev/null || true
     systemctl enable gpsd &>/dev/null || true
     systemctl start gpsd.socket &>/dev/null || true
     systemctl start gpsd &>/dev/null || true
-    printf "%b  %b gpsd enabled\n" "${OVER}" "${TICK}"
-    printf "  %b Set the GPS device in /etc/default/gpsd (e.g. DEVICES=\"/dev/ttyAMA0\")\n" "${INFO}"
+    log_tick_over "gpsd enabled"
+    log_info "Set the GPS device in /etc/default/gpsd (e.g. DEVICES=\"/dev/ttyAMA0\")"
 }
 
 setup_gps_systemd_service() {
-    printf "  %b Setting up GPS systemd service...\n" "${INFO}"
+    log_info "Setting up GPS systemd service..."
     cat > /etc/systemd/system/gpshomebridge.service << EOF
 [Unit]
 Description=GPS Home Bridge Service
@@ -234,11 +253,11 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable gpshomebridge.service
-    printf "%b  %b GPS systemd service configured\n" "${OVER}" "${TICK}"
+    log_tick_over "GPS systemd service configured"
 }
 
 configure_webserver() {
-    printf "  %b Configuring web server...\n" "${INFO}"
+    log_info "Configuring web server..."
     # Detect installed web server
     local web_server=""
     for ws in "${WEB_SERVERS[@]}"; do
@@ -262,21 +281,21 @@ configure_webserver() {
                 systemctl start apache2
                 ;;
         esac
-        printf "%b  %b $web_server configured\n" "${OVER}" "${TICK}"
+        log_tick_over "$web_server configured"
     else
-        printf "%b  %b No web server found\n" "${OVER}" "${CROSS}"
+        log_cross_over "No web server found"
         exit 1
     fi
 }
 
 start_services() {
-    printf "  %b Starting NTP Home Bridge service...\n" "${INFO}"
+    log_info "Starting NTP Home Bridge service..."
     systemctl start ntphomebridge.service
-    printf "%b  %b NTP service started\n" "${OVER}" "${TICK}"
+    log_tick_over "NTP service started"
 
-    printf "  %b Starting GPS Home Bridge service...\n" "${INFO}"
+    log_info "Starting GPS Home Bridge service..."
     systemctl start gpshomebridge.service
-    printf "%b  %b GPS service started\n" "${OVER}" "${TICK}"
+    log_tick_over "GPS service started"
 }
 
 abort() {
@@ -305,21 +324,21 @@ main() {
                 SKIP_GPSD=1
                 ;;
             --ntp-server)
-                [ -n "$2" ] || { printf "%b  %b --ntp-server needs a value\n" "${OVER}" "${CROSS}"; usage >&2; exit 1; }
+                [ -n "$2" ] || { log_cross_over "--ntp-server needs a value"; usage >&2; exit 1; }
                 NTP_SERVER="$2"
                 shift
                 ;;
             --web-root)
-                [ -n "$2" ] || { printf "%b  %b --web-root needs a value\n" "${OVER}" "${CROSS}" >&2; exit 1; }
+                [ -n "$2" ] || { log_cross_over "--web-root needs a value" >&2; exit 1; }
                 WEB_ROOT="$2"
                 shift
                 ;;
             -h|--help)
-                printf "%b  Usage: $0 [--skip-gpsd] [--web-root WEBROOT] [--ntp-server ntpd/chrony]\n" "${OVER}"
+                log_over "Usage: $0 [--skip-gpsd] [--web-root WEBROOT] [--ntp-server ntpd/chronyd]\n" "${OVER}"
                 exit 0
                 ;;
             *)
-                printf "%b  %b Unknown option: $1\n" "${OVER}" "${CROSS}"
+                log_cross_over "Unknown option: $1"
                 exit 1
                 ;;
         esac
@@ -327,10 +346,16 @@ main() {
     done
 
     case "$NTP_SERVER" in
-        ntpd|chrony)
+        ntpd|chronyd)
+            ;;
+        ntp)
+            NTP_SERVER=ntpd
+            ;;
+        chrony)
+            NTP_SERVER=chronyd
             ;;
         *)
-            printf "%b  %b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chrony)\n" "${OVER}" "${CROSS}"
+            printf "%b  %b Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chronyd)\n" "${OVER}" "${CROSS}"
             exit 1
             ;;
     esac
@@ -358,7 +383,7 @@ main() {
     install_dependencies
 
     if [[ ! -f "scripts/ntp_service.sh" ]]; then
-        printf "  %b Cloning repository...\n" "${INFO}"
+        log_info "Cloning repository..."
         rm -rf /tmp/ntphomebridge-repo
         if ! git clone --depth 1 "$REPO_URL" /tmp/ntphomebridge-repo; then
             printf "  %b Failed to clone %s\n" "${CROSS}" "$REPO_URL"

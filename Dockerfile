@@ -21,7 +21,7 @@ WORKDIR /opt/repo
 
 # Make installer and scripts executable
 RUN chmod +x gpsntphomebridge.sh
-RUN chmod +x scripts/ntp_service.sh scripts/gpsserver.sh
+RUN chmod +x scripts/ntp_service_ntpd.sh scripts/ntp_service_chronyd.sh scripts/gpsserver.sh
 
 # There is no systemd in a container. Stub systemctl so the installer can run
 # unchanged; unit files are still written and can be inspected.
@@ -30,14 +30,16 @@ RUN printf '#!/bin/sh\necho "[stub] systemctl $*"\nexit 0\n' > /usr/local/bin/sy
 
 # Run the installer. No "|| true": a failing installer must fail the build,
 # which is the point of testing it here.
-RUN yes y | ./gpsntphomebridge.sh
+ARG NTP_SERVER=ntpd
+RUN yes y | ./gpsntphomebridge.sh --ntp-server ${NTP_SERVER}
 
 # Verify the installer placed everything and resolved its own dependencies
-RUN test -x /opt/ntphomebridge/ntp_service.sh \
+RUN test -x /opt/ntphomebridge/ntp_service_ntpd.sh \
+    && test -x /opt/ntphomebridge/ntp_service_chronyd.sh \
     && test -x /opt/ntphomebridge/gpsserver.sh \
     && test -x /opt/ntphomebridge/gps_sensor.py \
     && command -v jq \
-    && command -v ntpd
+    && command -v ${NTP_SERVER}
 
 EXPOSE 80
 
