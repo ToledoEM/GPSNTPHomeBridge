@@ -21,7 +21,7 @@ Built for the case where you already run a GPS-disciplined NTP server at home an
 
 ## Requirements
 
-A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port, and root access. The installer pulls in `ntp`, `gpsd`, `jq`, Python 3 and a web server if you do not already have one.
+A Raspberry Pi running a Debian-based OS, a GPS receiver on a serial or USB port, and root access. The installer pulls in `ntp` (or `chrony`), `gpsd`, `jq`, Python 3 and a web server if you do not already have one.
 
 ## Installation
 
@@ -47,6 +47,27 @@ It installs the dependencies, copies the collection scripts to `/opt/ntphomebrid
 
 The installer clones the repository itself when it needs the collection scripts, so downloading the single file is enough to start.
 
+### Installer options
+
+| Flag | Default | What it does |
+|------|---------|--------------|
+| `--ntp-server ntpd\|chronyd` | `ntpd` | Which NTP daemon to report on. `ntp` and `chrony` work too |
+| `--web-root DIR` | `/var/www/html` | Where the JSON files are published. Point it at a directory your web server already serves; the installer does not change the web server config |
+| `--skip-gpsd` | off | Leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing |
+| `-h`, `--help` | | Print usage |
+
+```bash
+sudo ./gpsntphomebridge.sh --ntp-server chronyd
+```
+
+The choice is saved in `/etc/ntphomebridge/bridge.env` and in the systemd unit, so run the installer again to switch.
+
+### chrony
+
+With `--ntp-server chronyd` the endpoints keep the same names and fields, so the integration and REST sensors work unchanged. chrony has no equivalent for `status`, `status_flags` or `precision`, so those stay empty.
+
+On Debian and Raspberry Pi OS, `chrony` and `ntp` conflict: installing one removes the other.
+
 ### GPS device
 
 The installer enables `gpsd` but leaves the device to you, since it depends on your hardware. Set it in `/etc/default/gpsd`:
@@ -56,9 +77,10 @@ DEVICES="/dev/ttyAMA0"     # or /dev/ttyUSB0, /dev/ttyACM0, ...
 GPSD_OPTIONS="-n"
 ```
 
-Restart with `sudo systemctl restart gpsd`. Check the receiver is talking before you expect anything on the GPS endpoint:
+Restart with `sudo systemctl restart gpsd`. Check the receiver is talking before you expect anything on the GPS endpoint. `gpspipe` comes from the `gpsd-clients` package, which the installer does not pull in:
 
 ```bash
+sudo apt install gpsd-clients
 gpspipe -w -n 10
 ```
 

@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-10-28
+
+### Added
+- Support for `chrony` added alongside ntpd (`scripts/ntp_service_chronyd.sh`)
+- Configuration support (/etc/ntphomebridge/bridge.env) added to override WEB_ROOT
+- Command line flags `--web-root`, `--ntp-server`, `--skip-gpsd` and `--help` added to installer. `--ntp-server` takes `ntpd` or `chronyd` (`ntp` and `chrony` also accepted)
+- Docker CI builds and checks both the ntpd and chronyd images
+
+### Changed
+- `scripts/ntp_service.sh` renamed to `scripts/ntp_service_ntpd.sh`. The installer links `/opt/ntphomebridge/ntp_service.sh` to the script for the chosen daemon
+- `gpsserver.sh` reads gpsd's socket directly instead of calling `gpspipe`
+
+### Fixed
+- The GPS collector no longer takes the first SKY report, which in newer gpsd versions can arrive without a "satellites" array
+- Removed dependency on `gpsd-clients` which was not previously satisfied by dependency installation
+
 ## [0.1.1] - 2026-08-27
 
 Release cut for submission to the HACS default store. No functional change to the integration.

@@ -10,18 +10,18 @@ set -e
 export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 ######## VARIABLES #########
-VERSION="0.1.0"
+VERSION="0.2.0"
 REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placeholder
 # NTP & GPS Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
 NTP_CONFIG_DIR="/etc/ntphomebridge"
 WEB_ROOT="/var/www/html"
+NTP_SERVER="ntpd"
 
 # Dependencies (package name -> binary used to detect it; these differ, e.g.
 # the "ntp" package provides "ntpd", so probing for "ntp" would never match)
-DEPENDENCIES=("ntp" "python3" "gpsd" "git" "jq")
+DEPENDENCIES=("python3" "gpsd" "git" "jq")
 declare -A DEP_BINARY=(
-    [ntp]="ntpd"
     [python3]="python3"
     [gpsd]="gpsd"
     [git]="git"
@@ -44,6 +44,56 @@ is_command() {
     command -v "$1" >/dev/null 2>&1
 }
 
+get_ip() {
+    ip -4 route get 1.1.1.1 2>/dev/null \
+        | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}'
+}
+
+# Messages go in as %s arguments, never into the format string, so a path or
+# value containing % or \ is printed as-is.
+log() {
+    printf "  %b %s\n" "$2" "$1"
+}
+
+log_info() {
+    log "$1" "${INFO}"
+}
+
+log_tick() {
+    log "$1" "${TICK}"
+}
+
+log_cross() {
+    log "$1" "${CROSS}"
+}
+
+log_over() {
+    printf "%b  %b %s\n" "${OVER}" "$2" "$1"
+}
+
+log_tick_over() {
+    log_over "$1" "${TICK}"
+}
+
+log_cross_over() {
+    log_over "$1" "${CROSS}"
+}
+
+usage() {
+    cat << EOF
+Usage: $0 [--ntp-server ntpd|chronyd] [--web-root DIR] [--skip-gpsd]
+
+  --ntp-server ntpd|chronyd  NTP daemon to report on (default: ntpd).
+                             On apt systems installing chrony removes ntp.
+  --web-root DIR             Directory the JSON files are published to
+                             (default: /var/www/html). Point it at a directory
+                             your web server already serves.
+  --skip-gpsd                Do not enable or start gpsd (for existing setups).
+                             gpsd is still installed if missing.
+  -h, --help                 Show this help.
+EOF
+}
+
 package_manager_detect() {
     if is_command apt-get; then
         PKG_MANAGER="apt-get"
@@ -53,27 +103,45 @@ package_manager_detect() {
         PKG_MANAGER="yum"
         PKG_INSTALL="${PKG_MANAGER} install -y"
     else
-        printf "  %b No supported package manager found\n" "${CROSS}"
+        log_over "No supported package manager found" "${CROSS}"
         exit 1
     fi
 }
 
 update_package_cache() {
-    printf "  %b Updating package cache...\n" "${INFO}"
+    log_info "Updating package cache..."
     if eval "${UPDATE_PKG_CACHE}" &>/dev/null; then
-        printf "%b  %b Package cache updated\n" "${OVER}" "${TICK}"
+        log_over "Package cache updated" "${TICK}"
     else
-        printf "%b  %b Failed to update package cache\n" "${OVER}" "${CROSS}"
+        log_over "Failed to update package cache" "${CROSS}"
         exit 1
     fi
 }
 
 install_dependencies() {
-    printf "  %b Installing dependencies...\n" "${INFO}"
+    log_info "Installing dependencies..."
+
+    # Set up for our specified NTP server
+    case "$NTP_SERVER" in
+        ntpd)
+            DEP_BINARY[ntp]="ntpd"
+            DEPENDENCIES+=("ntp")
+            ;;
+        chronyd)
+            DEP_BINARY[chrony]="chronyd"
+            DEPENDENCIES+=("chrony")
+            if is_command ntpd && ! is_command chronyd; then
+                log_info "ntpd found: installing chrony will replace it"
+            fi
+            ;;
+    esac
+
+    # Loop packages to install missing binaries if needed
     for dep in "${DEPENDENCIES[@]}"; do
         # Probe the binary the package provides, not the package name itself
         local probe="${DEP_BINARY[$dep]:-$dep}"
         if ! is_command "$probe"; then
+            log_info "Installing $dep..."
             if eval "${PKG_INSTALL} $dep" &>/dev/null; then
                 printf "  %b Installed %s\n" "${TICK}" "$dep"
             else
@@ -89,32 +157,32 @@ install_dependencies() {
     local web_server_installed=false
     for ws in "${WEB_SERVERS[@]}"; do
         if is_command "$ws"; then
-            printf "  %b $ws already installed\n" "${INFO}"
+            log_info "$ws already installed"
             web_server_installed=true
             break
         fi
     done
     if [[ "$web_server_installed" == false ]]; then
-        printf "  %b No web server found, installing lighttpd...\n" "${INFO}"
+        log_info "No web server found, installing lighttpd..."
         if eval "${PKG_INSTALL} lighttpd" &>/dev/null; then
-            printf "  %b Installed lighttpd\n" "${TICK}"
+            log_tick "Installed lighttpd"
         else
-            printf "  %b Failed to install lighttpd\n" "${CROSS}"
+            log_cross "Failed to install lighttpd"
             exit 1
         fi
     fi
 }
 
 create_directories() {
-    printf "  %b Creating directories...\n" "${INFO}"
+    log_info "Creating directories..."
     mkdir -p "$NTP_HOME_DIR"
     mkdir -p "$NTP_CONFIG_DIR"
     mkdir -p "$WEB_ROOT"
-    printf "%b  %b Directories created\n" "${OVER}" "${TICK}"
+    log_tick_over "Directories created"
 }
 
 copy_scripts() {
-    printf "  %b Copying scripts...\n" "${INFO}"
+    log_info "Copying scripts..."
     
     # Check if we're in the repo directory or need to look elsewhere
     if [[ -f "scripts/ntpq_crv_sensor.py" ]]; then
@@ -129,26 +197,41 @@ copy_scripts() {
     cp "$SCRIPT_SOURCE/ntpq_crv_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/ntpq_pn_sensor.py" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gps_sensor.py" "$NTP_HOME_DIR/"
-    cp "$SCRIPT_SOURCE/ntp_service.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service_ntpd.sh" "$NTP_HOME_DIR/"
+    cp "$SCRIPT_SOURCE/ntp_service_chronyd.sh" "$NTP_HOME_DIR/"
     cp "$SCRIPT_SOURCE/gpsserver.sh" "$NTP_HOME_DIR/"
-    chmod +x "$NTP_HOME_DIR/ntp_service.sh"
+    chmod +x "$NTP_HOME_DIR/ntp_service_ntpd.sh"
+    chmod +x "$NTP_HOME_DIR/ntp_service_chronyd.sh"
     chmod +x "$NTP_HOME_DIR/gpsserver.sh"
     chmod +x "$NTP_HOME_DIR/ntpq_crv_sensor.py"
     chmod +x "$NTP_HOME_DIR/ntpq_pn_sensor.py"
     chmod +x "$NTP_HOME_DIR/gps_sensor.py"
     echo "$VERSION" > "$NTP_HOME_DIR/version.txt"
-    printf "%b  %b Scripts copied\n" "${OVER}" "${TICK}"
+    log_tick_over "Scripts copied"
+}
+
+configure_env() {
+    log_info "Configuring environment file..."
+    # %q quotes the value so a path with spaces survives being sourced
+    printf 'WEB_ROOT=%q\n' "$WEB_ROOT" > "$NTP_CONFIG_DIR/bridge.env"
+    log_tick_over "Environment file written"
 }
 
 setup_ntp_systemd_service() {
-    printf "  %b Setting up NTP systemd service...\n" "${INFO}"
+    log_info "Setting up NTP systemd service for $NTP_SERVER..."
+
+    BINARY="ntp_service_${NTP_SERVER}.sh"
+
+    # Link the binary to ntp_service.sh to maintain compatibility
+    ln -sfn "$NTP_HOME_DIR/$BINARY" "$NTP_HOME_DIR/ntp_service.sh"
+
     cat > /etc/systemd/system/ntphomebridge.service << EOF
 [Unit]
 Description=NTP Home Bridge Service
 After=network.target
 
 [Service]
-ExecStart=$NTP_HOME_DIR/ntp_service.sh
+ExecStart=$NTP_HOME_DIR/$BINARY
 WorkingDirectory=$NTP_HOME_DIR/
 StandardOutput=journal
 StandardError=journal
@@ -160,23 +243,23 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable ntphomebridge.service
-    printf "%b  %b NTP systemd service configured\n" "${OVER}" "${TICK}"
+    log_tick_over "NTP systemd service configured"
 }
 
 enable_gpsd() {
-    printf "  %b Enabling gpsd...\n" "${INFO}"
+    log_info "Enabling gpsd..."
     # gpsd ships socket-activated on Debian; enable both so the GPS service has
     # something to talk to. Non-fatal: the NTP pipeline works without GPS.
     systemctl enable gpsd.socket &>/dev/null || true
     systemctl enable gpsd &>/dev/null || true
     systemctl start gpsd.socket &>/dev/null || true
     systemctl start gpsd &>/dev/null || true
-    printf "%b  %b gpsd enabled\n" "${OVER}" "${TICK}"
-    printf "  %b Set the GPS device in /etc/default/gpsd (e.g. DEVICES=\"/dev/ttyAMA0\")\n" "${INFO}"
+    log_tick_over "gpsd enabled"
+    log_info "Set the GPS device in /etc/default/gpsd (e.g. DEVICES=\"/dev/ttyAMA0\")"
 }
 
 setup_gps_systemd_service() {
-    printf "  %b Setting up GPS systemd service...\n" "${INFO}"
+    log_info "Setting up GPS systemd service..."
     cat > /etc/systemd/system/gpshomebridge.service << EOF
 [Unit]
 Description=GPS Home Bridge Service
@@ -195,11 +278,11 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable gpshomebridge.service
-    printf "%b  %b GPS systemd service configured\n" "${OVER}" "${TICK}"
+    log_tick_over "GPS systemd service configured"
 }
 
 configure_webserver() {
-    printf "  %b Configuring web server...\n" "${INFO}"
+    log_info "Configuring web server..."
     # Detect installed web server
     local web_server=""
     for ws in "${WEB_SERVERS[@]}"; do
@@ -223,21 +306,21 @@ configure_webserver() {
                 systemctl start apache2
                 ;;
         esac
-        printf "%b  %b $web_server configured\n" "${OVER}" "${TICK}"
+        log_tick_over "$web_server configured"
     else
-        printf "%b  %b No web server found\n" "${OVER}" "${CROSS}"
+        log_cross_over "No web server found"
         exit 1
     fi
 }
 
 start_services() {
-    printf "  %b Starting NTP Home Bridge service...\n" "${INFO}"
-    systemctl start ntphomebridge.service
-    printf "%b  %b NTP service started\n" "${OVER}" "${TICK}"
+    log_info "Starting NTP Home Bridge service..."
+    systemctl restart ntphomebridge.service
+    log_tick_over "NTP service started"
 
-    printf "  %b Starting GPS Home Bridge service...\n" "${INFO}"
-    systemctl start gpshomebridge.service
-    printf "%b  %b GPS service started\n" "${OVER}" "${TICK}"
+    log_info "Starting GPS Home Bridge service..."
+    systemctl restart gpshomebridge.service
+    log_tick_over "GPS service started"
 }
 
 abort() {
@@ -250,7 +333,54 @@ trap abort INT QUIT TERM
 
 main() {
     printf "\n%b NTP & GPS Home Bridge Installer v$VERSION\n" "${COL_GREEN}"
-    printf "==========================================\n\n"
+    printf "==========================================\n\n%b" "${OVER}"
+
+    # Parse flags before the root check so --help works for any user
+    SKIP_GPSD=0
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --skip-gpsd)
+                SKIP_GPSD=1
+                ;;
+            --ntp-server)
+                [ -n "$2" ] || { log_cross_over "--ntp-server needs a value" >&2; usage >&2; exit 1; }
+                NTP_SERVER="$2"
+                shift
+                ;;
+            --web-root)
+                [ -n "$2" ] || { log_cross_over "--web-root needs a value" >&2; usage >&2; exit 1; }
+                WEB_ROOT="$2"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                log_cross_over "Unknown option: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
+    case "$NTP_SERVER" in
+        ntpd|chronyd)
+            ;;
+        ntp)
+            NTP_SERVER=ntpd
+            ;;
+        chrony)
+            NTP_SERVER=chronyd
+            ;;
+        *)
+            log_cross_over "Invalid --ntp-server value: $NTP_SERVER (expected ntpd or chronyd)" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
 
     # Check if root
     if [[ $EUID -ne 0 ]]; then
@@ -280,8 +410,8 @@ main() {
     # so install dependencies first.
     install_dependencies
 
-    if [[ ! -f "scripts/ntp_service.sh" ]]; then
-        printf "  %b Cloning repository...\n" "${INFO}"
+    if [[ ! -f "scripts/ntp_service_ntpd.sh" ]]; then
+        log_info "Cloning repository..."
         rm -rf /tmp/ntphomebridge-repo
         if ! git clone --depth 1 "$REPO_URL" /tmp/ntphomebridge-repo; then
             printf "  %b Failed to clone %s\n" "${CROSS}" "$REPO_URL"
@@ -292,7 +422,12 @@ main() {
 
     create_directories
     copy_scripts
-    enable_gpsd
+
+    if [ "$SKIP_GPSD" -eq 0 ]; then
+        enable_gpsd
+    fi
+
+    configure_env
     setup_ntp_systemd_service
     setup_gps_systemd_service
     configure_webserver
@@ -303,8 +438,15 @@ main() {
         rm -rf /tmp/ntphomebridge-repo
     fi
 
+    SERVER_IP=$(get_ip)
+
+    if [ -z "$SERVER_IP" ]; then
+        SERVER_IP="<your ip>"
+    fi
+
     printf "\n%b Installation complete!\n" "${TICK}"
-    printf "NTP and GPS data will be available at http://your_ip/ntpq_crv.json, http://your_ip/ntpq_pn.json, and http://your_ip/gps.json\n"
+    printf "NTP and GPS data will be available at http://%s/ntpq_crv.json, http://%s/ntpq_pn.json, and http://%s/gps.json\n" \
+        "$SERVER_IP" "$SERVER_IP" "$SERVER_IP"
 }
 
 main "$@"

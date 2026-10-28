@@ -1,6 +1,6 @@
 [project]
 name = "gpsntphomebridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "NTP and GPS monitoring endpoints for Home Assistant"
 requires-python = ">=3.9"
 
