@@ -382,7 +382,7 @@ main() {
     # so install dependencies first.
     install_dependencies
 
-    if [[ ! -f "scripts/ntp_service.sh" ]]; then
+    if [[ ! -f "scripts/ntp_service_ntpd.sh" ]]; then
         log_info "Cloning repository..."
         rm -rf /tmp/ntphomebridge-repo
         if ! git clone --depth 1 "$REPO_URL" /tmp/ntphomebridge-repo; then
