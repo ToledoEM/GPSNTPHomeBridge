@@ -50,7 +50,7 @@ The installer clones the repository itself when it needs the collection scripts,
 ### Installer options
 
 | Flag | Default | What it does |
-|------|---------|--------------|
+| ------ | --------- | -------------- |
 | `--ntp-server ntpd\|chronyd` | `ntpd` | Which NTP daemon to report on. `ntp` and `chrony` work too |
 | `--web-root DIR` | `/var/www/html` | Where the JSON files are published. Point it at a directory your web server already serves; the installer does not change the web server config |
 | `--skip-gpsd` | off | Leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing |
@@ -87,7 +87,7 @@ gpspipe -w -n 10
 ## Endpoints
 
 | Endpoint | Contents |
-|----------|----------|
+| ---------- | ---------- |
 | `http://<server_ip>/ntpq_crv.json` | Stratum, frequency, jitter, wander, precision, offset and the decoded status flags |
 | `http://<server_ip>/ntpq_pn.json` | One entry per peer: address, tally code, stratum, reach, delay, offset, jitter |
 | `http://<server_ip>/gps.json` | Satellite counts, per-constellation breakdown, average signal strength, DOP values and the raw satellite list |
