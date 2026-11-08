@@ -1,0 +1,78 @@
+name: Docs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs
+  cancel-in-progress: false
+
+jobs:
+  markdownlint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DavidAnson/markdownlint-cli2-action@v25
+        with:
+          config: .github/.markdownlint-cli2.yaml
+          globs: |
+            README.md
+            CHANGELOG.md
+
+  spellcheck:
+    name: Spellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: codespell-project/actions-codespell@v2
+        with:
+          path: README.md,CHANGELOG.md
+
+  deploy:
+    name: Build and deploy to gh-pages
+    needs: [markdownlint, spellcheck]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render README
+        run: quarto render README.md --to html --output-dir _site
+
+      # Same normalisation as the NTPGPSHomeBridge block in
+      # toledoem.github.io/build_site.sh: README.html becomes index.html and
+      # its asset directory becomes index_files.
+      - name: Normalise output
+        working-directory: _site
+        run: |
+          mv -f README.html index.html
+          rm -rf index_files
+          if [ -d README_files ]; then mv -f README_files index_files; fi
+          sed -i 's/README_files/index_files/g' index.html
+          sed -i 's|<title>.*</title>|<title>NTPGPSHomeBridge documentation</title>|' index.html
+          if [ ! -d img ]; then cp -r ../img .; fi
+          touch .nojekyll
+
+      - name: Check output
+        working-directory: _site
+        run: |
+          test -f index.html
+          test -d index_files
+          test -d img
+          test ! -e README_files
+          grep -q '<title>NTPGPSHomeBridge documentation</title>' index.html
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
