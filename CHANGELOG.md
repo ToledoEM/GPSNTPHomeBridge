@@ -5,16 +5,19 @@ All notable changes to this project are documented in this file.
 ## [0.2.0] - 2026-10-28
 
 ### Added
+
 - Support for `chrony` added alongside ntpd (`scripts/ntp_service_chronyd.sh`)
 - Configuration support (/etc/ntphomebridge/bridge.env) added to override WEB_ROOT
 - Command line flags `--web-root`, `--ntp-server`, `--skip-gpsd` and `--help` added to installer. `--ntp-server` takes `ntpd` or `chronyd` (`ntp` and `chrony` also accepted)
 - Docker CI builds and checks both the ntpd and chronyd images
 
 ### Changed
+
 - `scripts/ntp_service.sh` renamed to `scripts/ntp_service_ntpd.sh`. The installer links `/opt/ntphomebridge/ntp_service.sh` to the script for the chosen daemon
 - `gpsserver.sh` reads gpsd's socket directly instead of calling `gpspipe`
 
 ### Fixed
+
 - The GPS collector no longer takes the first SKY report, which in newer gpsd versions can arrive without a "satellites" array
 - Removed dependency on `gpsd-clients` which was not previously satisfied by dependency installation
 
@@ -23,6 +26,7 @@ All notable changes to this project are documented in this file.
 Release cut for submission to the HACS default store. No functional change to the integration.
 
 ### Changed
+
 - `manifest.json` version is now `0.1.1`, matching the release tag. The `v0.1` tag and the `0.1.0` manifest version disagreed, which HACS surfaces in its UI
 
 ## [0.1.0] - 2026-08-27
@@ -30,6 +34,7 @@ Release cut for submission to the HACS default store. No functional change to th
 First tagged release.
 
 ### Fixed
+
 - Added `jq` to the installer's dependency list. `gpsserver.sh` needs it to extract the SKY object, so on a clean machine the GPS endpoint served the error fallback forever. The Dockerfile installed `jq` on its own, which kept the problem out of sight during testing
 - Dependency detection probes the binary a package provides instead of the package name. The `ntp` package provides `ntpd`, so `is_command ntp` never matched and the installer reinstalled it every run
 - Defined `$OVER`, the carriage return and clear-line escape. Eleven `printf` calls used it while it held nothing, so each printed a stray blank instead of overwriting the progress line
@@ -44,6 +49,7 @@ First tagged release.
 - Removed the unused `NTP_SCRIPTS` array
 
 ### Added
+
 - `tests/`: a pytest suite that runs all three parsers against recorded `ntpq` and `gpsd` output. 100% statement and branch coverage, with CI gating at 95%. Every bug listed above has a test that fails against the old code, and the error handling paths were checked by mutation, so removing a fallback fails its test
 - `.github/workflows/ci.yml`: ShellCheck, Ruff, pytest with coverage sent to Codecov, and a Docker build that starts the container and checks all three endpoints return parseable JSON
 - `.github/dependabot.yml`: weekly GitHub Actions and Docker updates
@@ -52,6 +58,7 @@ First tagged release.
 - README badges and a GPS device setup section
 
 ### Changed
+
 - Breaking for existing consumers: `ntpq_pn.json` entries gain `tally`, `reach_raw` and `reach_pct`, and `reach` now holds the decimal value rather than the octal digits. `remote` no longer carries the tally character, so anything matching on the prefixed form needs updating. `reach_raw` keeps the original string
 - `ntpq_crv.json` gains `status` and `status_flags`
 - The Dockerfile installs neither `ntp`, `gpsd`, `git` nor `jq`, so the image checks that the installer resolves its own dependencies. It also no longer hides installer failure behind `|| true`
@@ -59,6 +66,7 @@ First tagged release.
 - Trimmed the README to what someone installing the package needs, and dropped the links to two API documentation files that are gitignored and absent from the repository
 
 ### Fixed earlier in the 0.1.0 cycle
+
 - The Python parsers resolve data file paths against the script's own directory rather than the working directory, so they run correctly from any CWD
 - Added `try`/`except` with `sys.exit(1)` to `ntpq_crv_sensor.py` and `ntpq_pn_sensor.py`, which had no exception handling at all
 - Replaced unguarded `int()` and `float()` calls in `ntpq_pn_sensor.py` with `safe_int()` and `safe_float()`, which fall back to a default on bad input

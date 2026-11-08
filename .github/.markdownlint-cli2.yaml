@@ -1,0 +1,8 @@
+config:
+  # README uses long single-line paragraphs on purpose.
+  MD013: false
+  # Centered logo needs <p align> and <img>.
+  MD033: false
+  # CHANGELOG repeats Added/Changed/Fixed per release; README repeats NTP/GPS under different parents.
+  MD024:
+    siblings_only: true
