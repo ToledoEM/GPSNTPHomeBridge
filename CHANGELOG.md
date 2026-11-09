@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.1] - 2026-11-09
+
+### Changed
+
+- HACS installs the integration from a `gps_ntp.zip` release asset instead of the source archive (`zip_release` and `filename` in `hacs.json`), so HACS can show a download count. `.github/workflows/release.yml` builds the zip on every published release and sets the `manifest.json` version from the release tag
+
 ## [0.2.0] - 2026-10-28
 
 ### Added

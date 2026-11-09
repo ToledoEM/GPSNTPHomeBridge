@@ -1,4 +1,6 @@
 {
   "name": "GPS & NTP Home Bridge",
-  "homeassistant": "2026.2"
+  "homeassistant": "2026.2",
+  "zip_release": true,
+  "filename": "gps_ntp.zip"
 }
