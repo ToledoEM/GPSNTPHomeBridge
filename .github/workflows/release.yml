@@ -3,6 +3,13 @@ name: release
 on:
   release:
     types: [published]
+  # Manual run: attach the zip to an existing release without cutting a new one.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and attach gps_ntp.zip to (e.g. v0.2)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,12 +18,14 @@ jobs:
   zip:
     name: Build HACS zip
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
 
       - name: Set manifest version from tag
-        env:
-          TAG: ${{ github.event.release.tag_name }}
         run: |
           VERSION="${TAG#v}"
           jq --arg v "$VERSION" '.version = $v' custom_components/gps_ntp/manifest.json > manifest.tmp
@@ -31,4 +40,5 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG }}
           files: gps_ntp.zip
