@@ -570,6 +570,7 @@ uninstall() {
     # The JSON files live wherever the install put them; read that before the
     # config directory goes. --web-root overrides.
     if [[ "$WEB_ROOT_SET" -eq 0 && -f "$NTP_CONFIG_DIR/bridge.env" ]]; then
+        # shellcheck source=/dev/null
         WEB_ROOT=$(. "$NTP_CONFIG_DIR/bridge.env" 2>/dev/null; printf '%s' "$WEB_ROOT")
     fi
 
