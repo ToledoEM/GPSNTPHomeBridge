@@ -3,7 +3,7 @@
  *
  *   strategy:
  *     type: custom:gps-ntp
- *     cards: [A1, A3, B1, C1]   # optional, default: every card that can render
+ *     cards: [status, peers, sky_plot]   # optional, default: every card that can render
  *     hours: 24                 # optional, time span of the history charts
  *     device_id: abc123         # optional, when more than one bridge is set up
  *
@@ -44,7 +44,7 @@ const apexHeader = (title) => ({
 // builder returning one or more Lovelace cards. `e` maps sensor keys to
 // entity IDs, `h` is the chart span in hours.
 const CARDS = {
-  A1: {
+  status: {
     section: "overview",
     build: (e, h) => [
       { type: "tile", entity: e.stratum, name: "Stratum", grid_options: { columns: 6 } },
@@ -55,7 +55,7 @@ const CARDS = {
       trendTile(e.hdop, "HDOP", h),
     ],
   },
-  A2: {
+  history: {
     section: "history",
     build: (e, h) => [
       {
@@ -77,7 +77,7 @@ const CARDS = {
       },
     ],
   },
-  A3: {
+  gauges: {
     section: "overview",
     build: (e) => [
       {
@@ -112,7 +112,7 @@ const CARDS = {
       },
     ],
   },
-  A4: {
+  peers: {
     section: "overview",
     build: (e) => [
       {
@@ -127,7 +127,7 @@ const CARDS = {
       },
     ],
   },
-  B1: {
+  offset_jitter: {
     section: "ntp",
     lib: "apex",
     build: (e, h) => [
@@ -169,7 +169,7 @@ const CARDS = {
       },
     ],
   },
-  B2: {
+  frequency_wander: {
     section: "ntp",
     lib: "apex",
     build: (e, h) => [
@@ -194,7 +194,7 @@ const CARDS = {
       },
     ],
   },
-  B4: {
+  constellations: {
     section: "gps",
     lib: "apex",
     build: (e) => [
@@ -220,7 +220,7 @@ const CARDS = {
       },
     ],
   },
-  B5: {
+  satellites: {
     section: "gps",
     lib: "apex",
     build: (e, h) => [
@@ -252,7 +252,7 @@ const CARDS = {
       },
     ],
   },
-  B6: {
+  hdop_signal: {
     section: "gps",
     lib: "apex",
     build: (e, h) => [
@@ -278,7 +278,7 @@ const CARDS = {
       },
     ],
   },
-  C1: {
+  sky_plot: {
     section: "gps",
     lib: "plotly",
     build: (e) => {
@@ -336,7 +336,7 @@ const CARDS = {
       ];
     },
   },
-  C2: {
+  offset_histogram: {
     section: "ntp",
     lib: "plotly",
     build: (e, h) => [
@@ -355,7 +355,7 @@ const CARDS = {
       },
     ],
   },
-  C3: {
+  peer_scatter: {
     section: "ntp",
     lib: "plotly",
     build: (e) => {
@@ -393,7 +393,7 @@ const CARDS = {
       ];
     },
   },
-  C4: {
+  offset_zoom: {
     section: "ntp",
     lib: "plotly",
     build: (e, h) => [
@@ -410,7 +410,7 @@ const CARDS = {
       },
     ],
   },
-  C5: {
+  satellite_signal: {
     section: "gps",
     lib: "plotly",
     build: (e) => {
@@ -442,7 +442,7 @@ const CARDS = {
       ];
     },
   },
-  D1: {
+  sparklines: {
     section: "history",
     lib: "mini",
     build: (e, h) => {
@@ -525,7 +525,7 @@ async function generateSections(config, hass) {
   }
 
   const hours = Number(config.hours) > 0 ? Number(config.hours) : 24;
-  const requested = (config.cards || Object.keys(CARDS)).map((id) => String(id).toUpperCase());
+  const requested = (config.cards || Object.keys(CARDS)).map((id) => String(id).toLowerCase());
   const installed = {};
   for (const [key, lib] of Object.entries(LIBS)) {
     installed[key] = await libraryInstalled(lib.tag);

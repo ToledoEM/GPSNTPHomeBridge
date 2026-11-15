@@ -171,35 +171,35 @@ views:
     path: gps-ntp
     strategy:
       type: custom:gps-ntp
-      cards: [A1, A3, A4, B1, C1]
+      cards: [status, gauges, peers, offset_jitter, sky_plot]
       hours: 24
 ```
 
 | Option | Default | Meaning |
 | ---------- | ---------- | ---------- |
-| `cards` | all | List of card IDs from the table below. Case does not matter |
+| `cards` | all | List of card names from the table below |
 | `hours` | `24` | Time span of the history charts |
 | `device_id` | first bridge found | Which bridge to show when more than one is set up |
 
-| ID | Card | Needs |
+| Name | Card | Needs |
 | ---------- | ---------- | ---------- |
-| `A1` | Status tiles with a trend line: stratum, synced peer, offset, system jitter, satellites used, HDOP | nothing |
-| `A2` | History graphs: offset and jitter, satellites used and visible | nothing |
-| `A3` | Gauges: satellites used %, signal strength, HDOP | nothing |
-| `A4` | Peer table: tally, address, stratum, reach, offset, jitter | nothing |
-| `B1` | Offset line over jitter areas | apexcharts-card |
-| `B2` | Frequency and clock wander | apexcharts-card |
-| `B4` | Satellites per constellation, as a donut | apexcharts-card |
-| `B5` | Satellites used against visible | apexcharts-card |
-| `B6` | HDOP and signal strength | apexcharts-card |
-| `C1` | Sky plot: each satellite by azimuth and elevation, sized by signal, filled when used | plotly-graph-card |
-| `C2` | Offset histogram | plotly-graph-card |
-| `C3` | Peers by delay and offset | plotly-graph-card |
-| `C4` | Offset and jitter, zoomable | plotly-graph-card |
-| `C5` | Signal strength per satellite, used ones in green | plotly-graph-card |
-| `D1` | Compact sparklines: offset, system jitter, satellites, HDOP | mini-graph-card |
+| `status` | Status tiles with a trend line: stratum, synced peer, offset, system jitter, satellites used, HDOP | nothing |
+| `history` | History graphs: offset and jitter, satellites used and visible | nothing |
+| `gauges` | Gauges: satellites used %, signal strength, HDOP | nothing |
+| `peers` | Peer table: tally, address, stratum, reach, offset, jitter | nothing |
+| `offset_jitter` | Offset line over jitter areas | apexcharts-card |
+| `frequency_wander` | Frequency and clock wander | apexcharts-card |
+| `constellations` | Satellites per constellation, as a donut | apexcharts-card |
+| `satellites` | Satellites used against visible | apexcharts-card |
+| `hdop_signal` | HDOP and signal strength | apexcharts-card |
+| `sky_plot` | Sky plot: each satellite by azimuth and elevation, sized by signal, filled when used | plotly-graph-card |
+| `offset_histogram` | Offset histogram | plotly-graph-card |
+| `peer_scatter` | Peers by delay and offset | plotly-graph-card |
+| `offset_zoom` | Offset and jitter, zoomable | plotly-graph-card |
+| `satellite_signal` | Signal strength per satellite, used ones in green | plotly-graph-card |
+| `sparklines` | Compact sparklines: offset, system jitter, satellites, HDOP | mini-graph-card |
 
-The `A` cards are built into Home Assistant. The others need [apexcharts-card](https://github.com/RomRider/apexcharts-card), [plotly-graph-card](https://github.com/dbuezas/lovelace-plotly-graph-card) or [mini-graph-card](https://github.com/kalkih/mini-graph-card), all installable from HACS. Without a `cards` list, the strategy leaves out any card whose library is missing. Name such a card in `cards` and the view shows a note saying which library it needs.
+The first four use cards built into Home Assistant. The others need [apexcharts-card](https://github.com/RomRider/apexcharts-card), [plotly-graph-card](https://github.com/dbuezas/lovelace-plotly-graph-card) or [mini-graph-card](https://github.com/kalkih/mini-graph-card), all installable from HACS. Without a `cards` list, the strategy leaves out any card whose library is missing. Name such a card in `cards` and the view shows a note saying which library it needs.
 
 ### REST sensors
 
