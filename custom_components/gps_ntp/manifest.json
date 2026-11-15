@@ -3,6 +3,7 @@
   "name": "GPS & NTP Home Bridge",
   "codeowners": ["@ToledoEM"],
   "config_flow": true,
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/ToledoEM/GPSNTPHomeBridge",
   "integration_type": "service",
   "iot_class": "local_polling",

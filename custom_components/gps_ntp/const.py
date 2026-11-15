@@ -20,3 +20,8 @@ SCAN_INTERVAL_NTP = timedelta(seconds=60)
 SCAN_INTERVAL_GPS = timedelta(seconds=15)
 
 REQUEST_TIMEOUT = 10
+
+# Dashboard strategy served to the frontend
+STRATEGY_FILE = "gps-ntp-strategy.js"
+STRATEGY_URL = f"/{DOMAIN}/{STRATEGY_FILE}"
+FRONTEND_REGISTERED = "frontend_registered"

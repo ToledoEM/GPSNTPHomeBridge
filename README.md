@@ -13,7 +13,7 @@
 
 Reads NTP and GPS status from a Raspberry Pi and serves it as JSON over HTTP, so Home Assistant can pick it up with REST sensors.
 
-Built for the case where you already run a GPS-disciplined NTP server at home and want to see whether it is actually behaving: stratum, jitter, which peers are answering, how many satellites the receiver can see.
+Built for the case where you already run a GPS-disciplined NTP server at home and want to see whether it is behaving: stratum, jitter, which peers are answering, how many satellites the receiver can see.
 
 ## Architecture
 
@@ -65,7 +65,7 @@ The bridge is the part that reads your NTP daemon and gpsd and publishes the rea
 sudo ./gpsntphomebridge.sh --bridge-only
 ```
 
-The NTP daemon, gpsd and the web server are left as they are: nothing is installed, enabled or restarted. The installer reports on chrony if it finds `chronyc` and on ntpd if it finds `ntpq`; when both are present it picks the one that is running. Pass `--ntp-server` to choose yourself.
+The installer leaves the NTP daemon, gpsd and the web server as they are. It does not install, enable or restart any of them. It reports on chrony if it finds `chronyc` and on ntpd if it finds `ntpq`; when both are present it picks the one that is running. Pass `--ntp-server` to choose yourself.
 
 If something the bridge needs is missing (`python3`, `jq`, `ntpq` or `chronyc`, `gpsd`, a web server), the installer lists it and asks before installing anything. Say no and it stops, unless only gpsd or the web server is missing, in which case it carries on without them.
 
@@ -79,7 +79,7 @@ sudo ./gpsntphomebridge.sh --uninstall
 
 This stops and removes `ntphomebridge.service` and `gpshomebridge.service`, deletes `/opt/ntphomebridge/` and `/etc/ntphomebridge/`, and removes the three JSON files from the web root. It asks for confirmation first.
 
-Packages are not removed, because the installer cannot tell which ones you use for something else. If you no longer need them, remove them yourself:
+The installer does not remove packages, because it cannot tell which ones you use for something else. If you no longer need them, remove them yourself:
 
 ```bash
 sudo apt-get remove gpsd lighttpd jq
@@ -102,7 +102,7 @@ Add `ntp` or `chrony` to that list only if you do not want the machine to keep t
 sudo ./gpsntphomebridge.sh --ntp-server chronyd
 ```
 
-The choice is saved in `/etc/ntphomebridge/bridge.env` and in the systemd unit, so run the installer again to switch.
+The installer saves the choice in `/etc/ntphomebridge/bridge.env` and in the systemd unit, so run it again to switch.
 
 ### chrony
 
@@ -148,9 +148,58 @@ Two ways to get the data in. The custom integration sets everything up from the 
 
 In HACS, search for *GPS & NTP Home Bridge*, download it, and restart Home Assistant. Then add it under **Settings, Devices & services, Add integration**, search for *GPS & NTP Home Bridge*, and enter the address of the Pi. Home Assistant can run on any device on the network, as long as it can reach the Pi over HTTP.
 
-It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown are attached as attributes.
+It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown come as attributes.
 
 The integration polls at the same rate the services refresh: NTP every 60 seconds, GPS every 15.
+
+#### Dashboard cards
+
+The integration ships a dashboard strategy that builds the cards for you. It looks up the bridge's sensors itself, so there are no entity IDs to edit and no resource to register.
+
+For a whole dashboard, create a new dashboard, open the raw configuration editor and replace the contents with:
+
+```yaml
+strategy:
+  type: custom:gps-ntp
+```
+
+To add it as one view of an existing dashboard:
+
+```yaml
+views:
+  - title: GPS & NTP
+    path: gps-ntp
+    strategy:
+      type: custom:gps-ntp
+      cards: [status, gauges, peers, offset_jitter, sky_plot]
+      hours: 24
+```
+
+| Option | Default | Meaning |
+| ---------- | ---------- | ---------- |
+| `cards` | all | List of card names from the table below |
+| `hours` | `24` | Time span of the history charts |
+| `device_id` | first bridge found | Which bridge to show when more than one is set up |
+
+| Name | Card | Needs |
+| ---------- | ---------- | ---------- |
+| `status` | Status tiles with a trend line: stratum, synced peer, offset, system jitter, satellites used, HDOP | nothing |
+| `history` | History graphs: offset and jitter, satellites used and visible | nothing |
+| `gauges` | Gauges: satellites used %, signal strength, HDOP | nothing |
+| `peers` | Peer table: tally, address, stratum, reach, offset, jitter | nothing |
+| `offset_jitter` | Offset line over jitter areas | apexcharts-card |
+| `frequency_wander` | Frequency and clock wander | apexcharts-card |
+| `constellations` | Satellites per constellation, as a donut | apexcharts-card |
+| `satellites` | Satellites used against visible | apexcharts-card |
+| `hdop_signal` | HDOP and signal strength | apexcharts-card |
+| `sky_plot` | Sky plot: each satellite by azimuth and elevation, sized by signal, filled when used | plotly-graph-card |
+| `offset_histogram` | Offset histogram | plotly-graph-card |
+| `peer_scatter` | Peers by delay and offset | plotly-graph-card |
+| `offset_zoom` | Offset and jitter, zoomable | plotly-graph-card |
+| `satellite_signal` | Signal strength per satellite, used ones in green | plotly-graph-card |
+| `sparklines` | Compact sparklines: offset, system jitter, satellites, HDOP | mini-graph-card |
+
+The first four use cards built into Home Assistant. The others need [apexcharts-card](https://github.com/RomRider/apexcharts-card), [plotly-graph-card](https://github.com/dbuezas/lovelace-plotly-graph-card) or [mini-graph-card](https://github.com/kalkih/mini-graph-card), all installable from HACS. Without a `cards` list, the strategy leaves out any card whose library is missing. Name such a card in `cards` and the view shows a note saying which library it needs.
 
 ### REST sensors
 
