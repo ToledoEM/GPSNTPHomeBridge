@@ -96,7 +96,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <img src="img/NTP&amp;GPSLogo.png" alt="NTP &amp; GPS Logo">
 </p>
 <p>Reads NTP and GPS status from a Raspberry Pi and serves it as JSON over HTTP, so Home Assistant can pick it up with REST sensors.</p>
-<p>Built for the case where you already run a GPS-disciplined NTP server at home and want to see whether it is actually behaving: stratum, jitter, which peers are answering, how many satellites the receiver can see.</p>
+<p>Built for the case where you already run a GPS-disciplined NTP server at home and want to see whether it is behaving: stratum, jitter, which peers are answering, how many satellites the receiver can see.</p>
 <section id="architecture" class="level2">
 <h2 class="anchored" data-anchor-id="architecture">Architecture</h2>
 <div class="quarto-figure quarto-figure-center">
@@ -127,6 +127,58 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./gpsntphomebridge.sh</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>It installs the dependencies, copies the collection scripts to <code>/opt/ntphomebridge/</code>, sets up two systemd services, and starts them. NTP data refreshes every 60 seconds, GPS every 15.</p>
 <p>The installer clones the repository itself when it needs the collection scripts, so downloading the single file is enough to start.</p>
+<section id="install-modes" class="level3">
+<h3 class="anchored" data-anchor-id="install-modes">Install modes</h3>
+<p>Run in a terminal with no mode flag, the installer opens a menu. Move with the arrow keys or the numbers; each entry shows what it will do before you press Enter. Run without a terminal (piped or scripted), it does a full install as before.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 23%">
+<col style="width: 23%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Mode</th>
+<th>Flag</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Full install</td>
+<td><code>--full</code></td>
+<td>Installs and enables the NTP daemon, gpsd and a web server, then the bridge. For a Pi with nothing set up yet</td>
+</tr>
+<tr class="even">
+<td>Bridge only</td>
+<td><code>--bridge-only</code></td>
+<td>Installs only the bridge: the collection scripts in <code>/opt/ntphomebridge/</code>, the config in <code>/etc/ntphomebridge/</code> and the two systemd services. For a machine where ntpd or chrony, gpsd and a web server already run</td>
+</tr>
+<tr class="odd">
+<td>Uninstall</td>
+<td><code>--uninstall</code></td>
+<td>Removes the bridge</td>
+</tr>
+</tbody>
+</table>
+<p>The bridge is the part that reads your NTP daemon and gpsd and publishes the readings as JSON. It does not keep time or talk to the GPS receiver itself.</p>
+</section>
+<section id="bridge-only" class="level3">
+<h3 class="anchored" data-anchor-id="bridge-only">Bridge only</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./gpsntphomebridge.sh <span class="at">--bridge-only</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The installer leaves the NTP daemon, gpsd and the web server as they are. It does not install, enable or restart any of them. It reports on chrony if it finds <code>chronyc</code> and on ntpd if it finds <code>ntpq</code>; when both are present it picks the one that is running. Pass <code>--ntp-server</code> to choose yourself.</p>
+<p>If something the bridge needs is missing (<code>python3</code>, <code>jq</code>, <code>ntpq</code> or <code>chronyc</code>, <code>gpsd</code>, a web server), the installer lists it and asks before installing anything. Say no and it stops, unless only gpsd or the web server is missing, in which case it carries on without them.</p>
+<p>The JSON files go to <code>/var/www/html</code> unless you pass <code>--web-root</code>. Your web server has to serve that directory.</p>
+</section>
+<section id="uninstall" class="level3">
+<h3 class="anchored" data-anchor-id="uninstall">Uninstall</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./gpsntphomebridge.sh <span class="at">--uninstall</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This stops and removes <code>ntphomebridge.service</code> and <code>gpshomebridge.service</code>, deletes <code>/opt/ntphomebridge/</code> and <code>/etc/ntphomebridge/</code>, and removes the three JSON files from the web root. It asks for confirmation first.</p>
+<p>The installer does not remove packages, because it cannot tell which ones you use for something else. If you no longer need them, remove them yourself:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get remove gpsd lighttpd jq</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get autoremove</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Add <code>ntp</code> or <code>chrony</code> to that list only if you do not want the machine to keep time.</p>
+</section>
 <section id="installer-options" class="level3">
 <h3 class="anchored" data-anchor-id="installer-options">Installer options</h3>
 <table class="caption-top table">
@@ -144,29 +196,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>--ntp-server ntpd\|chronyd</code></td>
-<td><code>ntpd</code></td>
-<td>Which NTP daemon to report on. <code>ntp</code> and <code>chrony</code> work too</td>
+<td><code>--full</code>, <code>--bridge-only</code>, <code>--uninstall</code></td>
+<td>menu, or <code>--full</code> without a terminal</td>
+<td>Install mode, see above</td>
 </tr>
 <tr class="even">
+<td><code>--ntp-server ntpd\|chronyd</code></td>
+<td><code>ntpd</code>; with <code>--bridge-only</code>, the one found</td>
+<td>Which NTP daemon to report on. <code>ntp</code> and <code>chrony</code> work too</td>
+</tr>
+<tr class="odd">
 <td><code>--web-root DIR</code></td>
 <td><code>/var/www/html</code></td>
 <td>Where the JSON files are published. Point it at a directory your web server already serves; the installer does not change the web server config</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>--skip-gpsd</code></td>
 <td>off</td>
-<td>Leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing</td>
+<td>Full install only: leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>-h</code>, <code>--help</code></td>
 <td></td>
 <td>Print usage</td>
 </tr>
 </tbody>
 </table>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./gpsntphomebridge.sh <span class="at">--ntp-server</span> chronyd</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The choice is saved in <code>/etc/ntphomebridge/bridge.env</code> and in the systemd unit, so run the installer again to switch.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./gpsntphomebridge.sh <span class="at">--ntp-server</span> chronyd</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The installer saves the choice in <code>/etc/ntphomebridge/bridge.env</code> and in the systemd unit, so run it again to switch.</p>
 </section>
 <section id="chrony" class="level3">
 <h3 class="anchored" data-anchor-id="chrony">chrony</h3>
@@ -176,11 +233,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="gps-device" class="level3">
 <h3 class="anchored" data-anchor-id="gps-device">GPS device</h3>
 <p>The installer enables <code>gpsd</code> but leaves the device to you, since it depends on your hardware. Set it in <code>/etc/default/gpsd</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">DEVICES</span><span class="op">=</span><span class="st">"/dev/ttyAMA0"</span>     <span class="co"># or /dev/ttyUSB0, /dev/ttyACM0, ...</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="va">GPSD_OPTIONS</span><span class="op">=</span><span class="st">"-n"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="va">DEVICES</span><span class="op">=</span><span class="st">"/dev/ttyAMA0"</span>     <span class="co"># or /dev/ttyUSB0, /dev/ttyACM0, ...</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="va">GPSD_OPTIONS</span><span class="op">=</span><span class="st">"-n"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Restart with <code>sudo systemctl restart gpsd</code>. Check the receiver is talking before you expect anything on the GPS endpoint. <code>gpspipe</code> comes from the <code>gpsd-clients</code> package, which the installer does not pull in:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install gpsd-clients</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gpspipe</span> <span class="at">-w</span> <span class="at">-n</span> 10</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install gpsd-clients</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gpspipe</span> <span class="at">-w</span> <span class="at">-n</span> 10</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="endpoints" class="level2">
@@ -231,153 +288,291 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="custom-integration" class="level3">
 <h3 class="anchored" data-anchor-id="custom-integration">Custom integration</h3>
 <p>In HACS, search for <em>GPS &amp; NTP Home Bridge</em>, download it, and restart Home Assistant. Then add it under <strong>Settings, Devices &amp; services, Add integration</strong>, search for <em>GPS &amp; NTP Home Bridge</em>, and enter the address of the Pi. Home Assistant can run on any device on the network, as long as it can reach the Pi over HTTP.</p>
-<p>It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown are attached as attributes.</p>
+<p>It creates a device with sensors for stratum, frequency, system and clock jitter, clock wander, offset, precision, the synced peer and peer reachability, plus satellite counts, satellite ratio, average signal strength, HDOP and the fix timestamp. Peer details and the per-constellation breakdown come as attributes.</p>
 <p>The integration polls at the same rate the services refresh: NTP every 60 seconds, GPS every 15.</p>
+<section id="dashboard-cards" class="level4">
+<h4 class="anchored" data-anchor-id="dashboard-cards">Dashboard cards</h4>
+<p>The integration ships a dashboard strategy that builds the cards for you. It looks up the bridge’s sensors itself, so there are no entity IDs to edit and no resource to register.</p>
+<p>For a whole dashboard, create a new dashboard, open the raw configuration editor and replace the contents with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">strategy</span><span class="kw">:</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">type</span><span class="kw">:</span><span class="at"> custom:gps-ntp</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To add it as one view of an existing dashboard:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">views</span><span class="kw">:</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> GPS &amp; NTP</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">path</span><span class="kw">:</span><span class="at"> gps-ntp</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">strategy</span><span class="kw">:</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">type</span><span class="kw">:</span><span class="at"> custom:gps-ntp</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">cards</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">status</span><span class="kw">,</span><span class="at"> gauges</span><span class="kw">,</span><span class="at"> peers</span><span class="kw">,</span><span class="at"> offset_jitter</span><span class="kw">,</span><span class="at"> sky_plot</span><span class="kw">]</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">hours</span><span class="kw">:</span><span class="at"> </span><span class="dv">24</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cards</code></td>
+<td>all</td>
+<td>List of card names from the table below</td>
+</tr>
+<tr class="even">
+<td><code>hours</code></td>
+<td><code>24</code></td>
+<td>Time span of the history charts</td>
+</tr>
+<tr class="odd">
+<td><code>device_id</code></td>
+<td>first bridge found</td>
+<td>Which bridge to show when more than one is set up</td>
+</tr>
+</tbody>
+</table>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Card</th>
+<th>Needs</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>status</code></td>
+<td>Status tiles with a trend line: stratum, synced peer, offset, system jitter, satellites used, HDOP</td>
+<td>nothing</td>
+</tr>
+<tr class="even">
+<td><code>history</code></td>
+<td>History graphs: offset and jitter, satellites used and visible</td>
+<td>nothing</td>
+</tr>
+<tr class="odd">
+<td><code>gauges</code></td>
+<td>Gauges: satellites used %, signal strength, HDOP</td>
+<td>nothing</td>
+</tr>
+<tr class="even">
+<td><code>peers</code></td>
+<td>Peer table: tally, address, stratum, reach, offset, jitter</td>
+<td>nothing</td>
+</tr>
+<tr class="odd">
+<td><code>offset_jitter</code></td>
+<td>Offset line over jitter areas</td>
+<td>apexcharts-card</td>
+</tr>
+<tr class="even">
+<td><code>frequency_wander</code></td>
+<td>Frequency and clock wander</td>
+<td>apexcharts-card</td>
+</tr>
+<tr class="odd">
+<td><code>constellations</code></td>
+<td>Satellites per constellation, as a donut</td>
+<td>apexcharts-card</td>
+</tr>
+<tr class="even">
+<td><code>satellites</code></td>
+<td>Satellites used against visible</td>
+<td>apexcharts-card</td>
+</tr>
+<tr class="odd">
+<td><code>hdop_signal</code></td>
+<td>HDOP and signal strength</td>
+<td>apexcharts-card</td>
+</tr>
+<tr class="even">
+<td><code>sky_plot</code></td>
+<td>Sky plot: each satellite by azimuth and elevation, sized by signal, filled when used</td>
+<td>plotly-graph-card</td>
+</tr>
+<tr class="odd">
+<td><code>offset_histogram</code></td>
+<td>Offset histogram</td>
+<td>plotly-graph-card</td>
+</tr>
+<tr class="even">
+<td><code>peer_scatter</code></td>
+<td>Peers by delay and offset</td>
+<td>plotly-graph-card</td>
+</tr>
+<tr class="odd">
+<td><code>offset_zoom</code></td>
+<td>Offset and jitter, zoomable</td>
+<td>plotly-graph-card</td>
+</tr>
+<tr class="even">
+<td><code>satellite_signal</code></td>
+<td>Signal strength per satellite, used ones in green</td>
+<td>plotly-graph-card</td>
+</tr>
+<tr class="odd">
+<td><code>sparklines</code></td>
+<td>Compact sparklines: offset, system jitter, satellites, HDOP</td>
+<td>mini-graph-card</td>
+</tr>
+</tbody>
+</table>
+<p>The first four use cards built into Home Assistant. The others need <a href="https://github.com/RomRider/apexcharts-card">apexcharts-card</a>, <a href="https://github.com/dbuezas/lovelace-plotly-graph-card">plotly-graph-card</a> or <a href="https://github.com/kalkih/mini-graph-card">mini-graph-card</a>, all installable from HACS. Without a <code>cards</code> list, the strategy leaves out any card whose library is missing. Name such a card in <code>cards</code> and the view shows a note saying which library it needs.</p>
+</section>
 </section>
 <section id="rest-sensors" class="level3">
 <h3 class="anchored" data-anchor-id="rest-sensors">REST sensors</h3>
 <p>Add these to <code>configuration.yaml</code>, then restart Home Assistant. Replace <code>YOUR_SERVER_IP</code> with the address of your Pi.</p>
 <section id="ntp" class="level4">
 <h4 class="anchored" data-anchor-id="ntp">NTP</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sensor</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">platform</span><span class="kw">:</span><span class="at"> rest</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> ntp_server_status</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> ntp_server_status</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resource</span><span class="kw">:</span><span class="at"> http://YOUR_SERVER_IP/ntpq_crv.json</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">value_template</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ value_json.stratum }}"</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">method</span><span class="kw">:</span><span class="at"> GET</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">verify_ssl</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">timeout</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">force_update</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scan_interval</span><span class="kw">:</span><span class="at"> </span><span class="dv">60</span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">json_attributes</span><span class="kw">:</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> stratum</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> frequency</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> sys_jitter</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> clk_jitter</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> clk_wander</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> precision</span></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> offset</span></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> refid</span></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> status</span></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> status_flags</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sensor</span><span class="kw">:</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">platform</span><span class="kw">:</span><span class="at"> rest</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> ntp_server_status</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> ntp_server_status</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resource</span><span class="kw">:</span><span class="at"> http://YOUR_SERVER_IP/ntpq_crv.json</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">value_template</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ value_json.stratum }}"</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">method</span><span class="kw">:</span><span class="at"> GET</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">verify_ssl</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">timeout</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">force_update</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scan_interval</span><span class="kw">:</span><span class="at"> </span><span class="dv">60</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">json_attributes</span><span class="kw">:</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> stratum</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> frequency</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> sys_jitter</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> clk_jitter</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> clk_wander</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> precision</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> offset</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> refid</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> status</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> status_flags</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The sensor state is the stratum. Everything else lands in attributes. <code>status_flags</code> holds the decoded words from the <code>ntpq</code> status line, such as <code>leap_none</code>, <code>sync_ntp</code> and <code>clock_sync</code>.</p>
 </section>
 <section id="gps" class="level4">
 <h4 class="anchored" data-anchor-id="gps">GPS</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sensor</span><span class="kw">:</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">platform</span><span class="kw">:</span><span class="at"> rest</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> gps_server</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> gps_server</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resource</span><span class="kw">:</span><span class="at"> http://YOUR_SERVER_IP/gps.json</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">value_template</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ value_json.used_satellites }}"</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">method</span><span class="kw">:</span><span class="at"> GET</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">verify_ssl</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">timeout</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">force_update</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scan_interval</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">json_attributes</span><span class="kw">:</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> total_satellites</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> used_satellites</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> satellite_ratio</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> avg_signal_strength</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> gnss_breakdown</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dop_values</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> timestamp</span></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> satellites</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sensor</span><span class="kw">:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">platform</span><span class="kw">:</span><span class="at"> rest</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> gps_server</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> gps_server</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resource</span><span class="kw">:</span><span class="at"> http://YOUR_SERVER_IP/gps.json</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">value_template</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ value_json.used_satellites }}"</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">method</span><span class="kw">:</span><span class="at"> GET</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">verify_ssl</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">timeout</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">force_update</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scan_interval</span><span class="kw">:</span><span class="at"> </span><span class="dv">30</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">json_attributes</span><span class="kw">:</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> total_satellites</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> used_satellites</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> satellite_ratio</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> avg_signal_strength</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> gnss_breakdown</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dop_values</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> timestamp</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> satellites</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The counts, constellation breakdown and average signal strength arrive precomputed, so read them as attributes instead of recalculating them in a template.</p>
 </section>
 <section id="template-sensors" class="level4">
 <h4 class="anchored" data-anchor-id="template-sensors">Template sensors</h4>
 <p>Split the attributes into their own entities if you want to graph them:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">sensor</span><span class="kw">:</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Stratum"</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'stratum') }}"</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_stratum"</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:server-network</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Frequency"</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'frequency') }}"</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_frequency"</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:speedometer</span></span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server System Jitter"</span></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'sys_jitter') }}"</span></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_sys_jitter"</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:chart-line</span></span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Clock Jitter"</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'clk_jitter') }}"</span></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_clk_jitter"</span></span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:clock</span></span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Clock Wander"</span></span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'clk_wander') }}"</span></span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_clk_wander"</span></span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:clock-alert</span></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Precision"</span></span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'precision') }}"</span></span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_precision"</span></span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:target</span></span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"used_satellites"</span></span>
-<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'used_satellites') }}"</span></span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"used_satellites"</span></span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
-<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"total_satellites"</span></span>
-<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'total_satellites') }}"</span></span>
-<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"total_satellites"</span></span>
-<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
-<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"signal_strength"</span></span>
-<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'avg_signal_strength') }}"</span></span>
-<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"signal_strength"</span></span>
-<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unit_of_measurement</span><span class="kw">:</span><span class="at"> dBHz</span></span>
-<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:signal-variant</span></span>
-<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"satellite_ratio"</span></span>
-<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'satellite_ratio') | round(1) }}"</span></span>
-<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"satellite_ratio"</span></span>
-<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unit_of_measurement</span><span class="kw">:</span><span class="at"> </span><span class="st">"%"</span></span>
-<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:percent</span></span>
-<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"glonass_satellites"</span></span>
-<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ (state_attr('sensor.gps_server', 'gnss_breakdown') or {}).get('glonass', 0) }}"</span></span>
-<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"glonass_satellites"</span></span>
-<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
-<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"gps_hdop"</span></span>
-<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ (state_attr('sensor.gps_server', 'dop_values') or {}).get('hdop', 0) }}"</span></span>
-<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"gps_hdop"</span></span>
-<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
-<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:crosshairs-gps</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">sensor</span><span class="kw">:</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Stratum"</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'stratum') }}"</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_stratum"</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:server-network</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Frequency"</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'frequency') }}"</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_frequency"</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:speedometer</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server System Jitter"</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'sys_jitter') }}"</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_sys_jitter"</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:chart-line</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Clock Jitter"</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'clk_jitter') }}"</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_clk_jitter"</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:clock</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Clock Wander"</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'clk_wander') }}"</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_clk_wander"</span></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:clock-alert</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"NTP Server Precision"</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.ntp_server_status', 'precision') }}"</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"ntp_server_precision"</span></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:target</span></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"used_satellites"</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'used_satellites') }}"</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"used_satellites"</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"total_satellites"</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'total_satellites') }}"</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"total_satellites"</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"signal_strength"</span></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'avg_signal_strength') }}"</span></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"signal_strength"</span></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unit_of_measurement</span><span class="kw">:</span><span class="at"> dBHz</span></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:signal-variant</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"satellite_ratio"</span></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ state_attr('sensor.gps_server', 'satellite_ratio') | round(1) }}"</span></span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"satellite_ratio"</span></span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unit_of_measurement</span><span class="kw">:</span><span class="at"> </span><span class="st">"%"</span></span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:percent</span></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"glonass_satellites"</span></span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ (state_attr('sensor.gps_server', 'gnss_breakdown') or {}).get('glonass', 0) }}"</span></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"glonass_satellites"</span></span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:satellite-variant</span></span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"gps_hdop"</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state</span><span class="kw">:</span><span class="at"> </span><span class="st">"{{ (state_attr('sensor.gps_server', 'dop_values') or {}).get('hdop', 0) }}"</span></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">unique_id</span><span class="kw">:</span><span class="at"> </span><span class="st">"gps_hdop"</span></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">state_class</span><span class="kw">:</span><span class="at"> measurement</span></span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">icon</span><span class="kw">:</span><span class="at"> mdi:crosshairs-gps</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>gpsd reports signal strength in dB-Hz, not dBm.</p>
 </section>
 <section id="dashboard" class="level4">
 <h4 class="anchored" data-anchor-id="dashboard">Dashboard</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">type</span><span class="kw">:</span><span class="at"> entities</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> NTP &amp; GPS Monitoring</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entities</span><span class="kw">:</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.ntp_server_stratum</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.ntp_server_clock_jitter</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.used_satellites</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.total_satellites</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.signal_strength</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.gps_hdop</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">type</span><span class="kw">:</span><span class="at"> entities</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> NTP &amp; GPS Monitoring</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entities</span><span class="kw">:</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.ntp_server_stratum</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.ntp_server_clock_jitter</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.used_satellites</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.total_satellites</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.signal_strength</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">entity</span><span class="kw">:</span><span class="at"> sensor.gps_hdop</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>These entity IDs come from the <code>name:</code> values above. Rename a sensor and the card needs the same change.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
