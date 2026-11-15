@@ -25,6 +25,29 @@ def test_shell_syntax_is_valid(script):
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize("flag", ["--full", "--bridge-only", "--uninstall"])
+def test_installer_help_lists_mode_flags(flag):
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "gpsntphomebridge.sh"), "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert flag in result.stdout
+
+
+def test_installer_menu_descriptions_fit_the_screen():
+    """Every menu item has a description, and no line runs past 60 columns."""
+    installer = (REPO_ROOT / "gpsntphomebridge.sh").read_text()
+    items = re.search(r"^MENU_ITEMS=\((.*)\)$", installer, re.M).group(1)
+    block = re.search(r"^MENU_DESC=\(\n(.*?)\n\)$", installer, re.M | re.S).group(1)
+    descriptions = re.findall(r'"(.*?)"', block, re.S)
+    assert len(descriptions) == len(re.findall(r'"(.*?)"', items))
+    for description in descriptions:
+        for line in description.splitlines():
+            assert len(line) <= 60, line
+
+
 def test_installer_declares_jq_dependency():
     """gpsserver.sh calls jq, so the installer has to install it.
 
