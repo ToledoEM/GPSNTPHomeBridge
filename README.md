@@ -47,13 +47,55 @@ It installs the dependencies, copies the collection scripts to `/opt/ntphomebrid
 
 The installer clones the repository itself when it needs the collection scripts, so downloading the single file is enough to start.
 
+### Install modes
+
+Run in a terminal with no mode flag, the installer opens a menu. Move with the arrow keys or the numbers; each entry shows what it will do before you press Enter. Run without a terminal (piped or scripted), it does a full install as before.
+
+| Mode | Flag | What it does |
+| ------ | ------ | -------------- |
+| Full install | `--full` | Installs and enables the NTP daemon, gpsd and a web server, then the bridge. For a Pi with nothing set up yet |
+| Bridge only | `--bridge-only` | Installs only the bridge: the collection scripts in `/opt/ntphomebridge/`, the config in `/etc/ntphomebridge/` and the two systemd services. For a machine where ntpd or chrony, gpsd and a web server already run |
+| Uninstall | `--uninstall` | Removes the bridge |
+
+The bridge is the part that reads your NTP daemon and gpsd and publishes the readings as JSON. It does not keep time or talk to the GPS receiver itself.
+
+### Bridge only
+
+```bash
+sudo ./gpsntphomebridge.sh --bridge-only
+```
+
+The NTP daemon, gpsd and the web server are left as they are: nothing is installed, enabled or restarted. The installer reports on chrony if it finds `chronyc` and on ntpd if it finds `ntpq`; when both are present it picks the one that is running. Pass `--ntp-server` to choose yourself.
+
+If something the bridge needs is missing (`python3`, `jq`, `ntpq` or `chronyc`, `gpsd`, a web server), the installer lists it and asks before installing anything. Say no and it stops, unless only gpsd or the web server is missing, in which case it carries on without them.
+
+The JSON files go to `/var/www/html` unless you pass `--web-root`. Your web server has to serve that directory.
+
+### Uninstall
+
+```bash
+sudo ./gpsntphomebridge.sh --uninstall
+```
+
+This stops and removes `ntphomebridge.service` and `gpshomebridge.service`, deletes `/opt/ntphomebridge/` and `/etc/ntphomebridge/`, and removes the three JSON files from the web root. It asks for confirmation first.
+
+Packages are not removed, because the installer cannot tell which ones you use for something else. If you no longer need them, remove them yourself:
+
+```bash
+sudo apt-get remove gpsd lighttpd jq
+sudo apt-get autoremove
+```
+
+Add `ntp` or `chrony` to that list only if you do not want the machine to keep time.
+
 ### Installer options
 
 | Flag | Default | What it does |
 | ------ | --------- | -------------- |
-| `--ntp-server ntpd\|chronyd` | `ntpd` | Which NTP daemon to report on. `ntp` and `chrony` work too |
+| `--full`, `--bridge-only`, `--uninstall` | menu, or `--full` without a terminal | Install mode, see above |
+| `--ntp-server ntpd\|chronyd` | `ntpd`; with `--bridge-only`, the one found | Which NTP daemon to report on. `ntp` and `chrony` work too |
 | `--web-root DIR` | `/var/www/html` | Where the JSON files are published. Point it at a directory your web server already serves; the installer does not change the web server config |
-| `--skip-gpsd` | off | Leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing |
+| `--skip-gpsd` | off | Full install only: leave gpsd alone, for a setup where it is already configured. gpsd is still installed if it is missing |
 | `-h`, `--help` | | Print usage |
 
 ```bash

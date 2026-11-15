@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Installer modes: `--full` (previous behaviour), `--bridge-only` and `--uninstall`. Run in a terminal without a mode flag, the installer shows a menu that describes each mode before anything is changed; without a terminal it still does a full install
+- `--bridge-only` installs just the collection scripts and the two systemd services, for machines where ntpd or chrony, gpsd and a web server are already set up. It detects which NTP daemon is present, lists any missing dependency and installs it only after asking
+- `--uninstall` removes the two services, `/opt/ntphomebridge/`, `/etc/ntphomebridge/` and the published JSON files. Packages are left in place and the installer prints how to remove them
+
 ## [0.2.1] - 2026-11-09
 
 ### Changed
