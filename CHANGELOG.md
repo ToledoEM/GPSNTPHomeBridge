@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-15
+
 ### Added
 
 - Installer modes: `--full` (previous behaviour), `--bridge-only` and `--uninstall`. Run in a terminal without a mode flag, the installer shows a menu that describes each mode before anything is changed; without a terminal it still does a full install

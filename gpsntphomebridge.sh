@@ -10,7 +10,7 @@ set -e
 export PATH+=':/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 ######## VARIABLES #########
-VERSION="0.2.0"
+VERSION="0.3.0"
 REPO_URL="https://github.com/ToledoEM/GPSNTPHomeBridge"  # Updated from placeholder
 # NTP & GPS Home Bridge directories
 NTP_HOME_DIR="/opt/ntphomebridge"
